@@ -37,6 +37,9 @@ public sealed class HistoryService
     public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default) =>
         _repository.DeleteAsync(id, cancellationToken);
 
+    public Task SetFavoriteAsync(Guid id, bool isFavorite, CancellationToken cancellationToken = default) =>
+        _repository.SetFavoriteAsync(id, isFavorite, cancellationToken);
+
     /// <exception cref="InvalidOperationException">El formato original ya no está disponible para este video.</exception>
     public async Task<DownloadJob> RepeatAsync(
         HistoryRecord record,

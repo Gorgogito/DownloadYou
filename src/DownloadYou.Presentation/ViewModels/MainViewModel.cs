@@ -10,6 +10,7 @@ using DownloadYou.Application.Services;
 using DownloadYou.Domain.Entities;
 using DownloadYou.Domain.Enums;
 using DownloadYou.Presentation.Formatting;
+using DownloadYou.Presentation.Models;
 
 namespace DownloadYou.Presentation.ViewModels;
 
@@ -48,6 +49,7 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<FormatOption> AvailableFormats { get; } = [];
     public ObservableCollection<DownloadJobViewModel> QueueItems { get; } = [];
     public ObservableCollection<HistoryEntryViewModel> HistoryEntries { get; } = [];
+    public ObservableCollection<HistoryEntryViewModel> LibraryEntries { get; } = [];
 
     [ObservableProperty]
     private bool _isRunning;
@@ -90,6 +92,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string _historyStatus = string.Empty;
+
+    [ObservableProperty]
+    private LibraryFilter _selectedLibraryFilter = LibraryFilter.Recent;
 
     [RelayCommand(CanExecute = nameof(CanRunDiagnostics))]
     private async Task RunDiagnosticsAsync()
@@ -235,6 +240,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             HistoryEntries.Add(new HistoryEntryViewModel(record));
         }
+        RebuildLibrary();
     }
 
     private async Task LoadHistoryAsync()
@@ -250,7 +256,11 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private void OnHistoryRecordAdded(HistoryRecord record) =>
-        _dispatcher.Invoke(() => HistoryEntries.Insert(0, new HistoryEntryViewModel(record)));
+        _dispatcher.Invoke(() =>
+        {
+            HistoryEntries.Insert(0, new HistoryEntryViewModel(record));
+            RebuildLibrary();
+        });
 
     [RelayCommand]
     private async Task RepeatDownloadAsync(HistoryEntryViewModel? entry)
@@ -282,6 +292,53 @@ public sealed partial class MainViewModel : ObservableObject
 
         await _historyService.DeleteAsync(entry.Id);
         HistoryEntries.Remove(entry);
+        RebuildLibrary();
+    }
+
+    [RelayCommand]
+    private async Task ToggleFavoriteAsync(HistoryEntryViewModel? entry)
+    {
+        if (entry is null)
+        {
+            return;
+        }
+
+        var newValue = !entry.IsFavorite;
+
+        try
+        {
+            await _historyService.SetFavoriteAsync(entry.Id, newValue);
+            entry.IsFavorite = newValue;
+            RebuildLibrary();
+        }
+        catch (Exception ex)
+        {
+            HistoryStatus = $"No se pudo actualizar favorito: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void SelectLibraryFilter(LibraryFilter filter) => SelectedLibraryFilter = filter;
+
+    partial void OnSelectedLibraryFilterChanged(LibraryFilter value) => RebuildLibrary();
+
+    private void RebuildLibrary()
+    {
+        var completed = HistoryEntries.Where(e => e.IsCompleted && File.Exists(e.Record.OutputFile));
+
+        IEnumerable<HistoryEntryViewModel> filtered = SelectedLibraryFilter switch
+        {
+            LibraryFilter.Videos => completed.Where(e => e.Record.Kind == DownloadKind.Video),
+            LibraryFilter.Audio => completed.Where(e => e.Record.Kind == DownloadKind.AudioMp3),
+            LibraryFilter.Favorites => completed.Where(e => e.IsFavorite),
+            _ => completed.Take(20)
+        };
+
+        LibraryEntries.Clear();
+        foreach (var entry in filtered)
+        {
+            LibraryEntries.Add(entry);
+        }
     }
 
     [RelayCommand]

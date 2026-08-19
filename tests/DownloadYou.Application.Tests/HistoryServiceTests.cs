@@ -157,6 +157,20 @@ public class HistoryServiceTests : IDisposable
         Assert.Contains(id, repo.DeletedIds);
     }
 
+    [Fact]
+    public async Task SetFavoriteAsync_DelegatesToRepository()
+    {
+        var repo = new FakeHistoryRepository();
+        var queue = new DownloadQueue(new DownloadService(new FakeVideoSource()), new ConversionService(new FakeMediaProcessor()), maxConcurrency: 1);
+        var service = new HistoryService(repo, queue, new AnalyzeUrlService(new FakeVideoSource()));
+        var record = BuildHistoryRecord("18");
+        await repo.AddAsync(record);
+
+        await service.SetFavoriteAsync(record.Id, true);
+
+        Assert.True(repo.Records.Single(r => r.Id == record.Id).IsFavorite);
+    }
+
     private static MediaInfo BuildMediaInfoFor(FormatOption format) =>
         new("https://youtu.be/x", "x", "Video de prueba", "Autor", TimeSpan.FromMinutes(1), null, [format]);
 
@@ -196,6 +210,16 @@ public class HistoryServiceTests : IDisposable
         public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
             DeletedIds.Add(id);
+            return Task.CompletedTask;
+        }
+
+        public Task SetFavoriteAsync(Guid id, bool isFavorite, CancellationToken cancellationToken = default)
+        {
+            var index = Records.FindIndex(r => r.Id == id);
+            if (index >= 0)
+            {
+                Records[index] = Records[index] with { IsFavorite = isFavorite };
+            }
             return Task.CompletedTask;
         }
     }

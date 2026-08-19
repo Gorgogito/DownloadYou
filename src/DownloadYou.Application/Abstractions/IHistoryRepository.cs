@@ -12,4 +12,6 @@ public interface IHistoryRepository
     Task<IReadOnlyList<HistoryRecord>> SearchAsync(string query, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task SetFavoriteAsync(Guid id, bool isFavorite, CancellationToken cancellationToken = default);
 }

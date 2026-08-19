@@ -114,6 +114,102 @@ public class SqliteHistoryRepositoryTests : IDisposable
         await repo.DeleteAsync(Guid.NewGuid());
     }
 
+    [Fact]
+    public async Task AddAsync_DefaultsIsFavorite_ToFalse()
+    {
+        var repo = BuildRepository();
+        await repo.AddAsync(BuildRecord());
+
+        var stored = Assert.Single(await repo.GetAllAsync());
+
+        Assert.False(stored.IsFavorite);
+    }
+
+    [Fact]
+    public async Task SetFavoriteAsync_TogglesFlag_AndOnlyForTheGivenRecord()
+    {
+        var repo = BuildRepository();
+        var favorite = BuildRecord("Favorito");
+        var other = BuildRecord("Otro");
+        await repo.AddAsync(favorite);
+        await repo.AddAsync(other);
+
+        await repo.SetFavoriteAsync(favorite.Id, true);
+        var all = await repo.GetAllAsync();
+
+        Assert.True(all.Single(r => r.Id == favorite.Id).IsFavorite);
+        Assert.False(all.Single(r => r.Id == other.Id).IsFavorite);
+    }
+
+    [Fact]
+    public async Task SetFavoriteAsync_CanUnsetFavorite()
+    {
+        var repo = BuildRepository();
+        var record = BuildRecord();
+        await repo.AddAsync(record);
+        await repo.SetFavoriteAsync(record.Id, true);
+
+        await repo.SetFavoriteAsync(record.Id, false);
+        var stored = Assert.Single(await repo.GetAllAsync());
+
+        Assert.False(stored.IsFavorite);
+    }
+
+    [Fact]
+    public async Task Constructor_MigratesDatabase_CreatedByPreFavoritesVersion()
+    {
+        var dbPath = Path.Combine(_dbDir, "legacy.db");
+        var existingId = Guid.NewGuid();
+        CreatePreFavoritesSchemaWithOneRow(dbPath, existingId);
+
+        // Construir el repositorio sobre una base que ya existe sin la columna IsFavorite
+        // no debe lanzar, y debe poder seguir operando sobre las filas ya guardadas.
+        var repo = new SqliteHistoryRepository(Options.Create(new HistoryOptions { DatabasePath = dbPath }));
+        var all = await repo.GetAllAsync();
+        var migrated = Assert.Single(all);
+
+        Assert.Equal(existingId, migrated.Id);
+        Assert.False(migrated.IsFavorite);
+
+        await repo.SetFavoriteAsync(existingId, true);
+        var updated = Assert.Single(await repo.GetAllAsync());
+        Assert.True(updated.IsFavorite);
+    }
+
+    private static void CreatePreFavoritesSchemaWithOneRow(string dbPath, Guid id)
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString());
+        connection.Open();
+
+        using (var create = connection.CreateCommand())
+        {
+            create.CommandText = """
+                CREATE TABLE History (
+                    Id TEXT PRIMARY KEY,
+                    Url TEXT NOT NULL,
+                    Title TEXT NOT NULL,
+                    Date TEXT NOT NULL,
+                    Kind TEXT NOT NULL,
+                    FormatId TEXT NOT NULL,
+                    QualityLabel TEXT NOT NULL,
+                    OutputFile TEXT NOT NULL,
+                    Status TEXT NOT NULL,
+                    ProcessDurationSeconds REAL NOT NULL
+                );
+                """;
+            create.ExecuteNonQuery();
+        }
+
+        using var insert = connection.CreateCommand();
+        insert.CommandText = """
+            INSERT INTO History (Id, Url, Title, Date, Kind, FormatId, QualityLabel, OutputFile, Status, ProcessDurationSeconds)
+            VALUES ($id, 'https://youtu.be/legacy', 'Video antiguo', $date, 'Video', '18', '360p', 'C:\old.mp4', 'Completed', 10);
+            """;
+        insert.Parameters.AddWithValue("$id", id.ToString());
+        insert.Parameters.AddWithValue("$date", DateTimeOffset.UtcNow.ToString("O"));
+        insert.ExecuteNonQuery();
+    }
+
     public void Dispose()
     {
         // Microsoft.Data.Sqlite agrupa conexiones (pooling) y retiene el handle nativo

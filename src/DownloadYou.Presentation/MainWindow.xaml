@@ -7,6 +7,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:conv="clr-namespace:DownloadYou.Presentation.Converters"
         xmlns:vm="clr-namespace:DownloadYou.Presentation.ViewModels"
+        xmlns:models="clr-namespace:DownloadYou.Presentation.Models"
         mc:Ignorable="d"
         Title="DownloadYou" Height="980" Width="920" MinWidth="760" MinHeight="640"
         WindowStartupLocation="CenterScreen"
@@ -19,6 +20,7 @@
         <conv:PercentToStarWidthConverter x:Key="PercentToStar"/>
         <conv:PipelineStepStateToSymbolConverter x:Key="StepSymbol"/>
         <conv:CountToVisibilityConverter x:Key="CountToVis"/>
+        <conv:LibraryFilterToAppearanceConverter x:Key="LibraryFilterAppearance"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <Style x:Key="StepIconStyle" TargetType="ui:SymbolIcon">
@@ -141,6 +143,14 @@
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <ui:Button Padding="8,4"
+                                   Appearance="{Binding IsFavorite, Converter={StaticResource BoolToAppearance}}"
+                                   Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                   CommandParameter="{Binding}" ToolTip="Marcar como favorito">
+                            <ui:Button.Icon>
+                                <ui:SymbolIcon Symbol="Star24" Filled="{Binding IsFavorite}"/>
+                            </ui:Button.Icon>
+                        </ui:Button>
+                        <ui:Button Padding="8,4" Margin="6,0,0,0"
                                    Command="{Binding DataContext.OpenHistoryFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                    CommandParameter="{Binding}" ToolTip="Abrir carpeta">
                             <ui:Button.Icon>
@@ -341,6 +351,38 @@
                                    Visibility="{Binding HistoryEntries.Count, Converter={StaticResource CountToVis}, ConverterParameter=Invert}"
                                    FontSize="12" Opacity="0.6" Margin="0,10,0,0"/>
                         <TextBlock Text="{Binding HistoryStatus}" Margin="0,8,0,0" FontSize="12" Opacity="0.85" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ui:CardControl>
+
+                <!-- Biblioteca -->
+                <ui:CardControl Margin="0,0,0,12">
+                    <ui:CardControl.Icon>
+                        <ui:SymbolIcon Symbol="Library24"/>
+                    </ui:CardControl.Icon>
+                    <ui:CardControl.Header>
+                        <ui:TextBlock Text="Biblioteca" FontTypography="BodyStrong"/>
+                    </ui:CardControl.Header>
+                    <StackPanel MinWidth="380">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button Content="Recientes" Padding="10,5"
+                                       Appearance="{Binding SelectedLibraryFilter, Converter={StaticResource LibraryFilterAppearance}, ConverterParameter=Recent}"
+                                       Command="{Binding SelectLibraryFilterCommand}" CommandParameter="{x:Static models:LibraryFilter.Recent}"/>
+                            <ui:Button Content="Videos" Padding="10,5" Margin="6,0,0,0"
+                                       Appearance="{Binding SelectedLibraryFilter, Converter={StaticResource LibraryFilterAppearance}, ConverterParameter=Videos}"
+                                       Command="{Binding SelectLibraryFilterCommand}" CommandParameter="{x:Static models:LibraryFilter.Videos}"/>
+                            <ui:Button Content="Audio" Padding="10,5" Margin="6,0,0,0"
+                                       Appearance="{Binding SelectedLibraryFilter, Converter={StaticResource LibraryFilterAppearance}, ConverterParameter=Audio}"
+                                       Command="{Binding SelectLibraryFilterCommand}" CommandParameter="{x:Static models:LibraryFilter.Audio}"/>
+                            <ui:Button Content="Favoritos" Padding="10,5" Margin="6,0,0,0"
+                                       Appearance="{Binding SelectedLibraryFilter, Converter={StaticResource LibraryFilterAppearance}, ConverterParameter=Favorites}"
+                                       Command="{Binding SelectLibraryFilterCommand}" CommandParameter="{x:Static models:LibraryFilter.Favorites}"/>
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding LibraryEntries}" ItemTemplate="{StaticResource HistoryItemTemplate}" Margin="0,10,0,0"/>
+
+                        <TextBlock Text="No hay descargas completadas para esta vista todavía."
+                                   Visibility="{Binding LibraryEntries.Count, Converter={StaticResource CountToVis}, ConverterParameter=Invert}"
+                                   FontSize="12" Opacity="0.6" Margin="0,10,0,0"/>
                     </StackPanel>
                 </ui:CardControl>
 

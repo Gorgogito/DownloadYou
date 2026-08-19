@@ -13,4 +13,5 @@ public sealed record HistoryRecord(
     string QualityLabel,
     string OutputFile,
     JobStatus Status,
-    TimeSpan ProcessDuration);
+    TimeSpan ProcessDuration,
+    bool IsFavorite = false);
