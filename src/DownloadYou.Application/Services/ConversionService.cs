@@ -87,7 +87,7 @@ public sealed class ConversionService(IMediaProcessor mediaProcessor)
             job.PrimaryFilePath!,
             convertedPath,
             effectiveBitrate,
-            _ => onProgressChanged?.Invoke(),
+            elapsed => ApplyConversionProgress(job, elapsed, onProgressChanged),
             onOutputLine,
             cancellationToken);
 
@@ -108,10 +108,27 @@ public sealed class ConversionService(IMediaProcessor mediaProcessor)
             job.PrimaryFilePath!,
             job.PairedAudioFilePath!,
             convertedPath,
-            _ => onProgressChanged?.Invoke(),
+            elapsed => ApplyConversionProgress(job, elapsed, onProgressChanged),
             onOutputLine,
             cancellationToken);
 
         return (convertedPath, true);
+    }
+
+    /// <summary>
+    /// Sin esto, ProgressPercent quedaba congelado en el valor que dejó la descarga (típicamente
+    /// 100) durante toda la conversión: FFmpeg sí reporta avance real vía -progress pipe:1, pero
+    /// se descartaba. La barra parecía "trabada en 100%" mientras el job seguía procesando de
+    /// verdad, justo la confusión que reportó un usuario probando la app.
+    /// </summary>
+    private static void ApplyConversionProgress(DownloadJob job, TimeSpan elapsed, Action? onProgressChanged)
+    {
+        var totalSeconds = job.MediaInfo.Duration.TotalSeconds;
+        if (totalSeconds > 0)
+        {
+            job.ProgressPercent = Math.Clamp(elapsed.TotalSeconds / totalSeconds * 100.0, 0, 100);
+        }
+
+        onProgressChanged?.Invoke();
     }
 }

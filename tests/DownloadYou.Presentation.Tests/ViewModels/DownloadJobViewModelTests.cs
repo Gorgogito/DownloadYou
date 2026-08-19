@@ -129,7 +129,12 @@ public class DownloadJobViewModelTests
     [Theory]
     [InlineData(JobStatus.Canceled, "Cancelado.")]
     [InlineData(JobStatus.Paused, "Pausado — se puede reanudar.")]
-    public void Refresh_SetsStatusLabel_ForTerminalAndPausedStates(JobStatus status, string expected)
+    [InlineData(JobStatus.Queued, "En cola, esperando turno...")]
+    [InlineData(JobStatus.Analyzing, "Analizando...")]
+    [InlineData(JobStatus.Downloading, "Descargando...")]
+    [InlineData(JobStatus.Converting, "Convirtiendo...")]
+    [InlineData(JobStatus.Verifying, "Verificando el archivo final...")]
+    public void Refresh_SetsStatusLabel_InSpanish_ForEveryNonTerminalOrPausedState(JobStatus status, string expected)
     {
         var vm = new DownloadJobViewModel(BuildJob(status), BuildQueue());
 

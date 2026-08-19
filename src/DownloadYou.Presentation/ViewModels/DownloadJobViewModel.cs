@@ -85,6 +85,11 @@ public sealed partial class DownloadJobViewModel : ObservableObject
             JobStatus.Failed => $"Error: {_job.ErrorMessage}",
             JobStatus.Canceled => "Cancelado.",
             JobStatus.Paused => "Pausado — se puede reanudar.",
+            JobStatus.Queued => "En cola, esperando turno...",
+            JobStatus.Analyzing => "Analizando...",
+            JobStatus.Downloading => "Descargando...",
+            JobStatus.Converting => "Convirtiendo...",
+            JobStatus.Verifying => "Verificando el archivo final...",
             _ => _job.Status.ToString()
         };
 

@@ -55,6 +55,34 @@ public class ConversionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RunAsync_UpdatesProgressPercent_FromRealMuxElapsedTime()
+    {
+        // Antes, ProgressPercent quedaba congelado en lo que dejó la descarga (típicamente 100)
+        // durante toda la conversión: FFmpeg reporta avance real vía -progress pipe:1, pero se
+        // descartaba. La duración del job de prueba es 19s (ver BuildJobReadyForConversion).
+        var job = BuildJobReadyForConversion(DownloadKind.Video, AudioOnly160);
+        job.ProgressPercent = 100; // como lo deja DownloadService al terminar de bajar los streams
+        var processor = new FakeMediaProcessor { ProgressElapsedToReport = TimeSpan.FromSeconds(9.5) };
+        var service = new ConversionService(processor);
+
+        await service.RunAsync(job);
+
+        Assert.Equal(50, job.ProgressPercent, precision: 3);
+    }
+
+    [Fact]
+    public async Task RunAsync_ClampsProgressPercent_WhenFfmpegReportsBeyondExpectedDuration()
+    {
+        var job = BuildJobReadyForConversion(DownloadKind.Video, AudioOnly160);
+        var processor = new FakeMediaProcessor { ProgressElapsedToReport = TimeSpan.FromSeconds(50) };
+        var service = new ConversionService(processor);
+
+        await service.RunAsync(job);
+
+        Assert.Equal(100, job.ProgressPercent);
+    }
+
+    [Fact]
     public async Task RunAsync_MuxesVideoAndAudio_ThenCompletesJob()
     {
         var job = BuildJobReadyForConversion(DownloadKind.Video, AudioOnly160);
@@ -166,6 +194,7 @@ public class ConversionServiceTests : IDisposable
         public int RequestedBitrateKbps { get; private set; }
         public Exception? ThrowOnMux { get; set; }
         public MediaVerificationResult VerificationResult { get; set; } = MediaVerificationResult.Valid(TimeSpan.FromSeconds(19));
+        public TimeSpan? ProgressElapsedToReport { get; set; }
 
         public Task<string> GetVersionAsync(Action<string>? onOutputLine = null, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
@@ -176,6 +205,7 @@ public class ConversionServiceTests : IDisposable
         {
             if (ThrowOnMux is not null) throw ThrowOnMux;
             MuxCalled = true;
+            if (ProgressElapsedToReport is { } elapsed) onProgress?.Invoke(elapsed);
             File.WriteAllText(outputFilePath, "muxed");
             return Task.CompletedTask;
         }
@@ -186,6 +216,7 @@ public class ConversionServiceTests : IDisposable
         {
             ExtractAudioCalled = true;
             RequestedBitrateKbps = bitrateKbps;
+            if (ProgressElapsedToReport is { } elapsed) onProgress?.Invoke(elapsed);
             File.WriteAllText(outputFilePath, "mp3");
             return Task.CompletedTask;
         }

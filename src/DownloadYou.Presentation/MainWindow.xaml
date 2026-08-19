@@ -59,7 +59,7 @@
         </Style>
 
         <DataTemplate x:Key="QueueItemTemplate" DataType="{x:Type vm:DownloadJobViewModel}">
-            <ui:Card Margin="0,0,0,10">
+            <ui:Card Margin="0,0,0,10" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
                 <StackPanel MinWidth="380">
                     <ui:TextBlock Text="{Binding Title}" FontTypography="BodyStrong" TextWrapping="Wrap"/>
                     <TextBlock FontSize="11" Opacity="0.7" Margin="0,2,0,0">
@@ -118,7 +118,7 @@
         </DataTemplate>
 
         <DataTemplate x:Key="HistoryItemTemplate" DataType="{x:Type vm:HistoryEntryViewModel}">
-            <ui:Card Margin="0,0,0,8">
+            <ui:Card Margin="0,0,0,8" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
                 <StackPanel>
                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
                     <TextBlock FontSize="11" Opacity="0.7" Margin="0,2,0,0">
