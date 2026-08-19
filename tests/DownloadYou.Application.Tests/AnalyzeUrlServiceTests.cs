@@ -43,5 +43,14 @@ public class AnalyzeUrlServiceTests
             WasCalled = true;
             return Task.FromResult(Result!);
         }
+
+        public Task DownloadAsync(
+            string url,
+            string formatId,
+            string outputFilePath,
+            Action<DownloadProgressUpdate>? onProgress = null,
+            Action<string>? onOutputLine = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
     }
 }

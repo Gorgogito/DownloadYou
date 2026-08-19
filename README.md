@@ -6,6 +6,7 @@ Aplicación de escritorio (Windows, .NET 10, WPF) para descarga y conversión de
 
 - ✅ **Fase 1 — Prototipo técnico.** Solución con las cuatro capas (Domain, Application, Infrastructure, Presentation), inyección de dependencias configurada, y una prueba de concepto que invoca `yt-dlp` y `ffmpeg` como procesos externos y transmite su salida estándar en tiempo real a la interfaz.
 - ✅ **Fase 2 — Análisis de URL y metadatos.** `AnalyzeUrlService` valida que la URL sea de YouTube (allowlist de hosts, defensa en profundidad) y delega en `YtDlpVideoSource.AnalyzeAsync`, que invoca `yt-dlp --dump-json` y parsea el resultado (`YtDlpMetadataParser`) a `MediaInfo`/`FormatOption`, clasificando cada stream como video-only, audio-only o combinado. La ventana muestra miniatura, título, duración y la lista de calidades realmente disponibles para ese video.
+- ✅ **Fase 3 — Descarga.** `DownloadJobFactory` empareja automáticamente un stream de audio cuando la calidad elegida es video-only (DASH). `DownloadService` descarga cada stream con `YtDlpVideoSource.DownloadAsync` (progreso vía `--progress-template` de yt-dlp — campos numéricos crudos, no texto parseado — mucho más robusto) y, si el formato ya viene combinado, mueve el archivo final con nombre saneado; si hace falta unir video+audio o convertir a MP3, deja el job listo para la Fase 4. Sin cola todavía (una descarga secuencial por vez): la ventana ya muestra progreso real (velocidad, MB descargados/total, ETA) y permite cancelar.
 
 ## Estructura
 

@@ -6,14 +6,21 @@ using DownloadYou.Application.Abstractions;
 using DownloadYou.Application.Diagnostics;
 using DownloadYou.Application.Services;
 using DownloadYou.Domain.Entities;
+using DownloadYou.Domain.Enums;
 
 namespace DownloadYou.Presentation.ViewModels;
 
 public sealed partial class MainViewModel(
     EngineDiagnosticsService diagnosticsService,
     AnalyzeUrlService analyzeUrlService,
+    DownloadService downloadService,
     Dispatcher dispatcher) : ObservableObject
 {
+    private const string DefaultFileNameTemplate = "{title} - {author} [{quality}].{ext}";
+    private const int DefaultAudioBitrateKbps = 192;
+
+    private CancellationTokenSource? _downloadCts;
+
     public ObservableCollection<string> LogLines { get; } = [];
     public ObservableCollection<FormatOption> AvailableFormats { get; } = [];
 
@@ -34,6 +41,36 @@ public sealed partial class MainViewModel(
 
     [ObservableProperty]
     private string _analysisStatus = "Pega una URL de YouTube y presiona Analizar.";
+
+    [ObservableProperty]
+    private FormatOption? _selectedFormat;
+
+    [ObservableProperty]
+    private bool _isVideoKind = true;
+
+    [ObservableProperty]
+    private bool _isAudioMp3Kind;
+
+    [ObservableProperty]
+    private string _targetFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+
+    [ObservableProperty]
+    private bool _isDownloading;
+
+    [ObservableProperty]
+    private string _downloadStatus = string.Empty;
+
+    [ObservableProperty]
+    private double _downloadProgressPercent;
+
+    [ObservableProperty]
+    private string _downloadSpeedLabel = string.Empty;
+
+    [ObservableProperty]
+    private string _downloadedSizeLabel = string.Empty;
+
+    [ObservableProperty]
+    private string _downloadEtaLabel = string.Empty;
 
     [RelayCommand(CanExecute = nameof(CanRunDiagnostics))]
     private async Task RunDiagnosticsAsync()
@@ -69,9 +106,11 @@ public sealed partial class MainViewModel(
     {
         IsAnalyzing = true;
         MediaInfo = null;
+        SelectedFormat = null;
         AvailableFormats.Clear();
         LogLines.Clear();
         AnalysisStatus = "Analizando...";
+        ResetDownloadProgress();
 
         try
         {
@@ -105,8 +144,139 @@ public sealed partial class MainViewModel(
 
     partial void OnIsAnalyzingChanged(bool value) => AnalyzeCommand.NotifyCanExecuteChanged();
 
+    partial void OnIsVideoKindChanged(bool value)
+    {
+        if (value)
+        {
+            IsAudioMp3Kind = false;
+        }
+    }
+
+    partial void OnIsAudioMp3KindChanged(bool value)
+    {
+        if (value)
+        {
+            IsVideoKind = false;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDownload))]
+    private async Task DownloadAsync()
+    {
+        if (MediaInfo is null || SelectedFormat is null)
+        {
+            return;
+        }
+
+        IsDownloading = true;
+        ResetDownloadProgress();
+        _downloadCts = new CancellationTokenSource();
+
+        try
+        {
+            var kind = IsAudioMp3Kind ? DownloadKind.AudioMp3 : DownloadKind.Video;
+            var job = DownloadJobFactory.Create(
+                MediaInfo, SelectedFormat, kind, TargetFolder, DefaultFileNameTemplate, DefaultAudioBitrateKbps);
+
+            await downloadService.RunAsync(
+                job,
+                onOutputLine: AppendLine,
+                onProgressChanged: () => dispatcher.Invoke(() => ReflectJobProgress(job)),
+                cancellationToken: _downloadCts.Token);
+
+            DownloadStatus = job.Status switch
+            {
+                JobStatus.Completed => $"Completado: {job.OutputFilePath}",
+                JobStatus.Converting => "Descarga lista, pendiente de conversión (Fase 4).",
+                JobStatus.Canceled => "Descarga cancelada.",
+                JobStatus.Failed => $"Error: {job.ErrorMessage}",
+                _ => job.Status.ToString()
+            };
+        }
+        catch (NoCompatibleAudioStreamException ex)
+        {
+            DownloadStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsDownloading = false;
+            _downloadCts?.Dispose();
+            _downloadCts = null;
+        }
+    }
+
+    private bool CanDownload() =>
+        !IsDownloading && MediaInfo is not null && SelectedFormat is not null && !string.IsNullOrWhiteSpace(TargetFolder);
+
+    partial void OnIsDownloadingChanged(bool value)
+    {
+        DownloadCommand.NotifyCanExecuteChanged();
+        CancelDownloadCommand.NotifyCanExecuteChanged();
+    }
+
+    partial void OnMediaInfoChanged(MediaInfo? value) => DownloadCommand.NotifyCanExecuteChanged();
+
+    partial void OnSelectedFormatChanged(FormatOption? value) => DownloadCommand.NotifyCanExecuteChanged();
+
+    partial void OnTargetFolderChanged(string value) => DownloadCommand.NotifyCanExecuteChanged();
+
+    [RelayCommand(CanExecute = nameof(CanCancelDownload))]
+    private void CancelDownload() => _downloadCts?.Cancel();
+
+    private bool CanCancelDownload() => IsDownloading;
+
+    private void ReflectJobProgress(DownloadJob job)
+    {
+        DownloadProgressPercent = job.ProgressPercent;
+        DownloadSpeedLabel = FormatSpeed(job.SpeedBytesPerSecond);
+        DownloadedSizeLabel = FormatSize(job.DownloadedBytes, job.TotalBytes);
+        DownloadEtaLabel = FormatEta(job.Eta);
+        DownloadStatus = job.Status.ToString();
+    }
+
+    private void ResetDownloadProgress()
+    {
+        DownloadProgressPercent = 0;
+        DownloadSpeedLabel = string.Empty;
+        DownloadedSizeLabel = string.Empty;
+        DownloadEtaLabel = string.Empty;
+        DownloadStatus = string.Empty;
+    }
+
     private static string FormatDuration(TimeSpan duration) =>
         duration.Hours > 0 ? duration.ToString(@"h\:mm\:ss") : duration.ToString(@"mm\:ss");
+
+    private static string FormatSpeed(double? bytesPerSecond) =>
+        bytesPerSecond is null ? string.Empty : $"{FormatSize(bytesPerSecond.Value)}/s";
+
+    private static string FormatSize(long? downloaded, long? total)
+    {
+        if (downloaded is null)
+        {
+            return string.Empty;
+        }
+
+        return total is null
+            ? FormatSize(downloaded.Value)
+            : $"{FormatSize(downloaded.Value)} / {FormatSize(total.Value)}";
+    }
+
+    private static string FormatSize(double bytes)
+    {
+        string[] units = ["B", "KB", "MB", "GB"];
+        var value = bytes;
+        var unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.Length - 1)
+        {
+            value /= 1024;
+            unitIndex++;
+        }
+
+        return $"{value:0.#} {units[unitIndex]}";
+    }
+
+    private static string FormatEta(TimeSpan? eta) =>
+        eta is null ? string.Empty : FormatDuration(eta.Value);
 
     private void AppendLine(string line) => dispatcher.Invoke(() => LogLines.Add(line));
 }

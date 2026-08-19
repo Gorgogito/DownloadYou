@@ -10,6 +10,7 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddSingleton<EngineDiagnosticsService>();
         services.AddSingleton<AnalyzeUrlService>();
+        services.AddSingleton<DownloadService>();
         return services;
     }
 }

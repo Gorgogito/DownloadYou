@@ -50,4 +50,55 @@ public sealed class YtDlpVideoSource(IExternalToolLocator toolLocator, ExternalP
 
         return YtDlpMetadataParser.Parse(jsonLine, url);
     }
+
+    public async Task DownloadAsync(
+        string url,
+        string formatId,
+        string outputFilePath,
+        Action<DownloadProgressUpdate>? onProgress = null,
+        Action<string>? onOutputLine = null,
+        CancellationToken cancellationToken = default)
+    {
+        var exePath = await toolLocator.ResolveAsync(ExternalTool.YtDlp, cancellationToken);
+
+        void HandleStandardOutput(string line)
+        {
+            var update = YtDlpProgressParser.TryParse(line);
+            if (update is not null)
+            {
+                onProgress?.Invoke(update);
+            }
+            else
+            {
+                onOutputLine?.Invoke(line);
+            }
+        }
+
+        var result = await processRunner.RunAsync(
+            exePath,
+            [
+                "-f", formatId,
+                "--newline",
+                "--no-warnings",
+                "--no-playlist",
+                "--progress-template",
+                $"download:{YtDlpProgressParser.LinePrefix}%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s",
+                "-o", outputFilePath,
+                url
+            ],
+            HandleStandardOutput,
+            onOutputLine,
+            cancellationToken);
+
+        if (!result.Succeeded)
+        {
+            var detail = result.StandardError.Count > 0 ? string.Join(' ', result.StandardError) : $"código de salida {result.ExitCode}";
+            throw new InvalidOperationException($"yt-dlp no pudo descargar el formato '{formatId}': {detail}");
+        }
+
+        if (!File.Exists(outputFilePath))
+        {
+            throw new InvalidOperationException($"yt-dlp reportó éxito pero no se encontró el archivo esperado en '{outputFilePath}'.");
+        }
+    }
 }
