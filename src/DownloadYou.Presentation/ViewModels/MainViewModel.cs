@@ -242,10 +242,40 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnTargetFolderChanged(string value) => EnqueueCommand.NotifyCanExecuteChanged();
 
     private void OnJobEnqueued(DownloadJob job) =>
-        _dispatcher.Invoke(() => QueueItems.Insert(0, new DownloadJobViewModel(job, _downloadQueue)));
+        _dispatcher.Invoke(() =>
+        {
+            QueueItems.Insert(0, new DownloadJobViewModel(job, _downloadQueue));
+            TrimQueueItems(QueueItems, MaxQueueItemsRetained);
+        });
 
     private void OnJobUpdated(DownloadJob job) =>
-        _dispatcher.Invoke(() => QueueItems.FirstOrDefault(q => q.Id == job.Id)?.Refresh());
+        _dispatcher.Invoke(() =>
+        {
+            QueueItems.FirstOrDefault(q => q.Id == job.Id)?.Refresh();
+            TrimQueueItems(QueueItems, MaxQueueItemsRetained);
+        });
+
+    /// <summary>Límite de tarjetas retenidas en la cola visible; ver <see cref="TrimQueueItems"/>.</summary>
+    public const int MaxQueueItemsRetained = 50;
+
+    /// <summary>
+    /// En una sesión larga con muchas descargas, <paramref name="items"/> (y el árbol visual
+    /// de cada tarjeta) crecería sin límite si nunca se sacara nada — cada job terminado se
+    /// queda ahí para siempre. Recorta solo terminados (Completed/Failed/Canceled), de más
+    /// viejo a más nuevo (van al final de la lista, ya que los nuevos se insertan al
+    /// principio); un job activo o pausado nunca se saca de la vista aunque se supere el
+    /// límite. El historial completo sigue disponible en la sección Historial.
+    /// </summary>
+    public static void TrimQueueItems(ObservableCollection<DownloadJobViewModel> items, int maxRetained)
+    {
+        for (var i = items.Count - 1; i >= 0 && items.Count > maxRetained; i--)
+        {
+            if (items[i].Status is JobStatus.Completed or JobStatus.Failed or JobStatus.Canceled)
+            {
+                items.RemoveAt(i);
+            }
+        }
+    }
 
     [RelayCommand]
     private async Task SearchHistoryAsync()
