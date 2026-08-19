@@ -23,9 +23,13 @@ public static class DownloadJobFactory
 
         if (kind == DownloadKind.Video && selectedFormat.Kind == StreamKind.VideoOnly)
         {
+            // Prioriza un audio de la misma familia de contenedor que el video: permite que
+            // FfmpegMediaProcessor.MuxAsync remuxe con "-c copy" (rápido, sin pérdida) en el
+            // caso común, en vez de depender de su fallback de transcodificación de audio.
             pairedAudio = mediaInfo.AvailableFormats
                 .Where(f => f.Kind == StreamKind.AudioOnly)
-                .OrderByDescending(f => f.AudioBitrateKbps ?? 0)
+                .OrderByDescending(f => ContainerFamily(f.Container) == ContainerFamily(selectedFormat.Container))
+                .ThenByDescending(f => f.AudioBitrateKbps ?? 0)
                 .FirstOrDefault()
                 ?? throw new NoCompatibleAudioStreamException(mediaInfo.VideoId);
         }
@@ -43,4 +47,11 @@ public static class DownloadJobFactory
             CreatedAt = DateTimeOffset.UtcNow
         };
     }
+
+    private static string ContainerFamily(string container) => container.ToLowerInvariant() switch
+    {
+        "mp4" or "m4a" or "m4v" or "mov" => "mp4",
+        "webm" => "webm",
+        var other => other
+    };
 }

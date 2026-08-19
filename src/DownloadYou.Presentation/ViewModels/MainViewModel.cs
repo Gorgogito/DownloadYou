@@ -14,6 +14,7 @@ public sealed partial class MainViewModel(
     EngineDiagnosticsService diagnosticsService,
     AnalyzeUrlService analyzeUrlService,
     DownloadService downloadService,
+    ConversionService conversionService,
     Dispatcher dispatcher) : ObservableObject
 {
     private const string DefaultFileNameTemplate = "{title} - {author} [{quality}].{ext}";
@@ -71,6 +72,9 @@ public sealed partial class MainViewModel(
 
     [ObservableProperty]
     private string _downloadEtaLabel = string.Empty;
+
+    [ObservableProperty]
+    private string _pipelineLabel = string.Empty;
 
     [RelayCommand(CanExecute = nameof(CanRunDiagnostics))]
     private async Task RunDiagnosticsAsync()
@@ -184,11 +188,19 @@ public sealed partial class MainViewModel(
                 onProgressChanged: () => dispatcher.Invoke(() => ReflectJobProgress(job)),
                 cancellationToken: _downloadCts.Token);
 
+            if (job.Status == JobStatus.Converting)
+            {
+                await conversionService.RunAsync(
+                    job,
+                    onOutputLine: AppendLine,
+                    onProgressChanged: () => dispatcher.Invoke(() => ReflectJobProgress(job)),
+                    cancellationToken: _downloadCts.Token);
+            }
+
             DownloadStatus = job.Status switch
             {
                 JobStatus.Completed => $"Completado: {job.OutputFilePath}",
-                JobStatus.Converting => "Descarga lista, pendiente de conversión (Fase 4).",
-                JobStatus.Canceled => "Descarga cancelada.",
+                JobStatus.Canceled => "Cancelado.",
                 JobStatus.Failed => $"Error: {job.ErrorMessage}",
                 _ => job.Status.ToString()
             };
@@ -232,6 +244,7 @@ public sealed partial class MainViewModel(
         DownloadedSizeLabel = FormatSize(job.DownloadedBytes, job.TotalBytes);
         DownloadEtaLabel = FormatEta(job.Eta);
         DownloadStatus = job.Status.ToString();
+        PipelineLabel = BuildPipelineLabel(job.Status);
     }
 
     private void ResetDownloadProgress()
@@ -241,6 +254,34 @@ public sealed partial class MainViewModel(
         DownloadedSizeLabel = string.Empty;
         DownloadEtaLabel = string.Empty;
         DownloadStatus = string.Empty;
+        PipelineLabel = string.Empty;
+    }
+
+    private static string BuildPipelineLabel(JobStatus status)
+    {
+        if (status is JobStatus.Failed or JobStatus.Canceled)
+        {
+            return status == JobStatus.Failed ? "✗ Error" : "✗ Cancelado";
+        }
+
+        string[] stages = ["Analizando", "Descargando", "Convirtiendo", "Verificando", "Finalizado"];
+
+        if (status == JobStatus.Completed)
+        {
+            return string.Join("   ", stages.Select(name => $"✓ {name}"));
+        }
+
+        var currentIndex = status switch
+        {
+            JobStatus.Queued or JobStatus.Analyzing => 0,
+            JobStatus.Downloading => 1,
+            JobStatus.Converting => 2,
+            JobStatus.Verifying => 3,
+            _ => 0
+        };
+
+        return string.Join("   ", stages.Select((name, i) =>
+            i < currentIndex ? $"✓ {name}" : i == currentIndex ? $"● {name}" : $"○ {name}"));
     }
 
     private static string FormatDuration(TimeSpan duration) =>

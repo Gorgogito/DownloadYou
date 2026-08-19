@@ -26,8 +26,8 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Margin="0,0,0,4">
-            <TextBlock Text="Fase 3 — Descarga" FontSize="18" FontWeight="Bold"/>
-            <TextBlock Text="Analiza una URL, elige calidad y carpeta, y descarga con progreso real (velocidad, tamaño, ETA)."
+            <TextBlock Text="Fase 4 — Conversión" FontSize="18" FontWeight="Bold"/>
+            <TextBlock Text="Analiza, descarga y — si hace falta unir video+audio o convertir a MP3 — convierte y verifica con FFmpeg/ffprobe."
                        Foreground="#666" Margin="0,4,0,0" TextWrapping="Wrap"/>
         </StackPanel>
 
@@ -125,7 +125,8 @@
                 <TextBlock Grid.Column="1" Text="{Binding DownloadedSizeLabel}" HorizontalAlignment="Center"/>
                 <TextBlock Grid.Column="2" Text="{Binding DownloadEtaLabel}" HorizontalAlignment="Right"/>
             </Grid>
-            <TextBlock Text="{Binding DownloadStatus}" Margin="0,6,0,0" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding PipelineLabel}" Margin="0,6,0,0" FontFamily="Consolas" FontSize="12" Foreground="#444"/>
+            <TextBlock Text="{Binding DownloadStatus}" Margin="0,4,0,0" FontWeight="SemiBold" TextWrapping="Wrap"/>
         </StackPanel>
 
         <ListBox Grid.Row="9" ItemsSource="{Binding LogLines}"

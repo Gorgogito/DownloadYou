@@ -11,6 +11,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<EngineDiagnosticsService>();
         services.AddSingleton<AnalyzeUrlService>();
         services.AddSingleton<DownloadService>();
+        services.AddSingleton<ConversionService>();
         return services;
     }
 }

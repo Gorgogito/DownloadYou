@@ -27,14 +27,26 @@ public class DownloadJobFactoryTests
     }
 
     [Fact]
-    public void Create_PairsHighestBitrateAudio_WhenSelectedFormatIsVideoOnly()
+    public void Create_PrefersContainerCompatibleAudio_OverHigherBitrateMismatchedContainer()
     {
+        // VideoOnly1080p es mp4/avc1; AudioOnly128 es m4a (misma familia "mp4", remux directo);
+        // AudioOnly160 es webm/opus, con más bitrate pero exigiría transcodificar en el mux.
         var mediaInfo = BuildMediaInfo(VideoOnly1080p, AudioOnly128, AudioOnly160);
 
         var job = DownloadJobFactory.Create(mediaInfo, VideoOnly1080p, DownloadKind.Video, "C:\\out", "{title}.{ext}", 192);
 
-        Assert.Equal("251", job.PairedAudioFormat?.FormatId);
+        Assert.Equal("140", job.PairedAudioFormat?.FormatId);
         Assert.True(job.RequiresConversion);
+    }
+
+    [Fact]
+    public void Create_FallsBackToHighestBitrate_WhenNoContainerFamilyMatches()
+    {
+        var mediaInfo = BuildMediaInfo(VideoOnly1080p, AudioOnly160);
+
+        var job = DownloadJobFactory.Create(mediaInfo, VideoOnly1080p, DownloadKind.Video, "C:\\out", "{title}.{ext}", 192);
+
+        Assert.Equal("251", job.PairedAudioFormat?.FormatId);
     }
 
     [Fact]

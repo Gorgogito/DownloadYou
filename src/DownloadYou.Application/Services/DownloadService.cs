@@ -72,19 +72,19 @@ public sealed class DownloadService(IVideoSource videoSource)
                 job.OutputFilePath = MoveToFinalDestination(job, existingFileBehavior);
                 job.Status = JobStatus.Completed;
                 job.CompletedAt = DateTimeOffset.UtcNow;
-                TryCleanupStaging(stagingDir);
+                TempCleanup.TryDeleteDirectory(stagingDir);
             }
         }
         catch (OperationCanceledException)
         {
             job.Status = JobStatus.Canceled;
-            TryCleanupStaging(stagingDir);
+            TempCleanup.TryDeleteDirectory(stagingDir);
         }
         catch (Exception ex)
         {
             job.Status = JobStatus.Failed;
             job.ErrorMessage = ex.Message;
-            TryCleanupStaging(stagingDir);
+            TempCleanup.TryDeleteDirectory(stagingDir);
         }
         finally
         {
@@ -103,32 +103,9 @@ public sealed class DownloadService(IVideoSource videoSource)
             job.SelectedFormat.DisplayLabel,
             job.SelectedFormat.Container);
 
-        // Skip se trata como Rename hasta que la Fase 9 (Configuración) lo exponga en la UI;
-        // decidir "no descargar" pertenece a un paso previo a la descarga, no a este.
-        var destination = ResolveCollision(Path.Combine(job.TargetDirectory, fileName), behavior);
+        var destination = DestinationPathResolver.ResolveCollision(Path.Combine(job.TargetDirectory, fileName), behavior);
         File.Move(job.PrimaryFilePath!, destination, overwrite: behavior == ExistingFileBehavior.Overwrite);
         return destination;
-    }
-
-    private static string ResolveCollision(string path, ExistingFileBehavior behavior)
-    {
-        if (behavior == ExistingFileBehavior.Overwrite || !File.Exists(path))
-        {
-            return path;
-        }
-
-        var dir = Path.GetDirectoryName(path)!;
-        var baseName = Path.GetFileNameWithoutExtension(path);
-        var ext = Path.GetExtension(path);
-
-        for (var i = 2; ; i++)
-        {
-            var candidate = Path.Combine(dir, $"{baseName} ({i}){ext}");
-            if (!File.Exists(candidate))
-            {
-                return candidate;
-            }
-        }
     }
 
     private static void ApplyProgress(DownloadJob job, DownloadProgressUpdate update, int streamIndex, int streamCount)
@@ -143,20 +120,6 @@ public sealed class DownloadService(IVideoSource videoSource)
         if (update.PercentComplete is { } percent)
         {
             job.ProgressPercent = streamIndex * span + percent * span / 100.0;
-        }
-    }
-
-    private static void TryCleanupStaging(string stagingDir)
-    {
-        try
-        {
-            Directory.Delete(stagingDir, recursive: true);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
         }
     }
 }
