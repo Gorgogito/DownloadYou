@@ -13,6 +13,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<DownloadService>();
         services.AddSingleton<ConversionService>();
         services.AddSingleton<DownloadQueue>();
+        services.AddSingleton<HistoryService>();
         return services;
     }
 }

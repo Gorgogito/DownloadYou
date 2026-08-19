@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -19,26 +21,33 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly EngineDiagnosticsService _diagnosticsService;
     private readonly AnalyzeUrlService _analyzeUrlService;
     private readonly DownloadQueue _downloadQueue;
+    private readonly HistoryService _historyService;
     private readonly Dispatcher _dispatcher;
 
     public MainViewModel(
         EngineDiagnosticsService diagnosticsService,
         AnalyzeUrlService analyzeUrlService,
         DownloadQueue downloadQueue,
+        HistoryService historyService,
         Dispatcher dispatcher)
     {
         _diagnosticsService = diagnosticsService;
         _analyzeUrlService = analyzeUrlService;
         _downloadQueue = downloadQueue;
+        _historyService = historyService;
         _dispatcher = dispatcher;
 
         _downloadQueue.JobEnqueued += OnJobEnqueued;
         _downloadQueue.JobUpdated += OnJobUpdated;
+        _historyService.RecordAdded += OnHistoryRecordAdded;
+
+        _ = LoadHistoryAsync();
     }
 
     public ObservableCollection<string> LogLines { get; } = [];
     public ObservableCollection<FormatOption> AvailableFormats { get; } = [];
     public ObservableCollection<DownloadJobViewModel> QueueItems { get; } = [];
+    public ObservableCollection<HistoryEntryViewModel> HistoryEntries { get; } = [];
 
     [ObservableProperty]
     private bool _isRunning;
@@ -75,6 +84,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string _enqueueStatus = string.Empty;
+
+    [ObservableProperty]
+    private string _historySearchQuery = string.Empty;
+
+    [ObservableProperty]
+    private string _historyStatus = string.Empty;
 
     [RelayCommand(CanExecute = nameof(CanRunDiagnostics))]
     private async Task RunDiagnosticsAsync()
@@ -210,6 +225,99 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void OnJobUpdated(DownloadJob job) =>
         _dispatcher.Invoke(() => QueueItems.FirstOrDefault(q => q.Id == job.Id)?.Refresh());
+
+    [RelayCommand]
+    private async Task SearchHistoryAsync()
+    {
+        var results = await _historyService.SearchAsync(HistorySearchQuery);
+        HistoryEntries.Clear();
+        foreach (var record in results)
+        {
+            HistoryEntries.Add(new HistoryEntryViewModel(record));
+        }
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try
+        {
+            await SearchHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            HistoryStatus = $"No se pudo cargar el historial: {ex.Message}";
+        }
+    }
+
+    private void OnHistoryRecordAdded(HistoryRecord record) =>
+        _dispatcher.Invoke(() => HistoryEntries.Insert(0, new HistoryEntryViewModel(record)));
+
+    [RelayCommand]
+    private async Task RepeatDownloadAsync(HistoryEntryViewModel? entry)
+    {
+        if (entry is null)
+        {
+            return;
+        }
+
+        try
+        {
+            HistoryStatus = $"Analizando de nuevo: {entry.Title}...";
+            var job = await _historyService.RepeatAsync(entry.Record, TargetFolder, DefaultFileNameTemplate, DefaultAudioBitrateKbps, AppendLine);
+            HistoryStatus = $"Agregado a la cola: {job.MediaInfo.Title} ({job.SelectedFormat.DisplayLabel}).";
+        }
+        catch (Exception ex)
+        {
+            HistoryStatus = $"No se pudo repetir la descarga: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private async Task DeleteHistoryEntryAsync(HistoryEntryViewModel? entry)
+    {
+        if (entry is null)
+        {
+            return;
+        }
+
+        await _historyService.DeleteAsync(entry.Id);
+        HistoryEntries.Remove(entry);
+    }
+
+    [RelayCommand]
+    private void OpenHistoryFolder(HistoryEntryViewModel? entry)
+    {
+        if (entry is null)
+        {
+            return;
+        }
+
+        var path = entry.Record.OutputFile;
+
+        try
+        {
+            if (File.Exists(path))
+            {
+                var psi = new ProcessStartInfo("explorer.exe") { UseShellExecute = false };
+                psi.ArgumentList.Add($"/select,\"{path}\"");
+                Process.Start(psi);
+                return;
+            }
+
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                Process.Start(new ProcessStartInfo(directory) { UseShellExecute = true });
+                return;
+            }
+
+            HistoryStatus = "El archivo y su carpeta ya no existen.";
+        }
+        catch (Exception ex)
+        {
+            HistoryStatus = $"No se pudo abrir la ubicación: {ex.Message}";
+        }
+    }
 
     private void AppendLine(string line) => _dispatcher.Invoke(() => LogLines.Add(line));
 }
