@@ -61,25 +61,17 @@
         <DataTemplate x:Key="QueueItemTemplate" DataType="{x:Type vm:DownloadJobViewModel}">
             <ui:Card Margin="0,0,0,10">
                 <StackPanel MinWidth="380">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <ui:TextBlock Text="{Binding Title}" FontTypography="BodyStrong" TextWrapping="Wrap"/>
-                            <TextBlock FontSize="11" Opacity="0.7" Margin="0,2,0,0">
-                                <Run Text="{Binding KindLabel, Mode=OneWay}"/>
-                                <Run Text=" · "/>
-                                <Run Text="{Binding QualityLabel, Mode=OneWay}"/>
-                            </TextBlock>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <ui:Button Content="Pausar" Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Padding="8,4"/>
-                            <ui:Button Content="Reanudar" Command="{Binding ResumeCommand}" IsEnabled="{Binding CanResume}" Appearance="Primary" Margin="6,0,0,0" Padding="8,4"/>
-                            <ui:Button Content="Cancelar" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" Margin="6,0,0,0" Padding="8,4"/>
-                        </StackPanel>
-                    </Grid>
+                    <ui:TextBlock Text="{Binding Title}" FontTypography="BodyStrong" TextWrapping="Wrap"/>
+                    <TextBlock FontSize="11" Opacity="0.7" Margin="0,2,0,0">
+                        <Run Text="{Binding KindLabel, Mode=OneWay}"/>
+                        <Run Text=" · "/>
+                        <Run Text="{Binding QualityLabel, Mode=OneWay}"/>
+                    </TextBlock>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <ui:Button Content="Pausar" Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Padding="8,4" Margin="0,4,0,0"/>
+                        <ui:Button Content="Reanudar" Command="{Binding ResumeCommand}" IsEnabled="{Binding CanResume}" Appearance="Primary" Margin="6,4,0,0" Padding="8,4"/>
+                        <ui:Button Content="Cancelar" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" Margin="6,4,0,0" Padding="8,4"/>
+                    </WrapPanel>
 
                     <Border Height="8" CornerRadius="4" ClipToBounds="True" Background="#22808080" Margin="0,10,0,0">
                         <Grid>
@@ -127,25 +119,19 @@
 
         <DataTemplate x:Key="HistoryItemTemplate" DataType="{x:Type vm:HistoryEntryViewModel}">
             <ui:Card Margin="0,0,0,8">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                        <TextBlock FontSize="11" Opacity="0.7" Margin="0,2,0,0">
-                            <Run Text="{Binding DateLabel, Mode=OneWay}"/>
-                            <Run Text=" · "/>
-                            <Run Text="{Binding KindLabel, Mode=OneWay}"/>
-                            <Run Text=" · "/>
-                            <Run Text="{Binding QualityLabel, Mode=OneWay}"/>
-                            <Run Text=" · "/>
-                            <Run Text="{Binding StatusLabel, Mode=OneWay}"/>
-                        </TextBlock>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <ui:Button Padding="8,4"
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                    <TextBlock FontSize="11" Opacity="0.7" Margin="0,2,0,0">
+                        <Run Text="{Binding DateLabel, Mode=OneWay}"/>
+                        <Run Text=" · "/>
+                        <Run Text="{Binding KindLabel, Mode=OneWay}"/>
+                        <Run Text=" · "/>
+                        <Run Text="{Binding QualityLabel, Mode=OneWay}"/>
+                        <Run Text=" · "/>
+                        <Run Text="{Binding StatusLabel, Mode=OneWay}"/>
+                    </TextBlock>
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <ui:Button Padding="8,4" Margin="0,4,0,0"
                                    Appearance="{Binding IsFavorite, Converter={StaticResource BoolToAppearance}}"
                                    Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                    CommandParameter="{Binding}" ToolTip="Marcar como favorito">
@@ -153,29 +139,29 @@
                                 <ui:SymbolIcon Symbol="Star24" Filled="{Binding IsFavorite}"/>
                             </ui:Button.Icon>
                         </ui:Button>
-                        <ui:Button Padding="8,4" Margin="6,0,0,0"
+                        <ui:Button Padding="8,4" Margin="6,4,0,0"
                                    Command="{Binding DataContext.OpenHistoryFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                    CommandParameter="{Binding}" ToolTip="Abrir carpeta">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="OpenFolder24"/>
                             </ui:Button.Icon>
                         </ui:Button>
-                        <ui:Button Padding="8,4" Margin="6,0,0,0"
+                        <ui:Button Padding="8,4" Margin="6,4,0,0"
                                    Command="{Binding DataContext.RepeatDownloadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                    CommandParameter="{Binding}" ToolTip="Repetir descarga">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="ArrowClockwise24"/>
                             </ui:Button.Icon>
                         </ui:Button>
-                        <ui:Button Padding="8,4" Margin="6,0,0,0" Appearance="Danger"
+                        <ui:Button Padding="8,4" Margin="6,4,0,0" Appearance="Danger"
                                    Command="{Binding DataContext.DeleteHistoryEntryCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                    CommandParameter="{Binding}" ToolTip="Eliminar del historial">
                             <ui:Button.Icon>
                                 <ui:SymbolIcon Symbol="Delete24"/>
                             </ui:Button.Icon>
                         </ui:Button>
-                    </StackPanel>
-                </Grid>
+                    </WrapPanel>
+                </StackPanel>
             </ui:Card>
         </DataTemplate>
     </Window.Resources>
@@ -193,7 +179,7 @@
         </ui:TitleBar>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="24,4,24,24" MaxWidth="760" HorizontalAlignment="Stretch">
+            <StackPanel Margin="24,4,24,24" MaxWidth="1000" HorizontalAlignment="Stretch">
 
                 <TextBlock Text="Analiza, descarga y convierte contenido de YouTube."
                            FontSize="13" Opacity="0.65" Margin="0,0,0,16"/>

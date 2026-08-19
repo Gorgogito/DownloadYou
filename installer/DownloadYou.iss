@@ -3,8 +3,8 @@
 ; Requiere que antes de compilar este script ya exista la publicación
 ; self-contained/single-file (ver installer\README.md o build\publish.ps1,
 ; que hace ambos pasos en orden) y que tools\ tenga los binarios reales de
-; yt-dlp/ffmpeg/ffprobe (ver tools\README.md — deben ser el build LGPL de
-; FFmpeg, nunca uno GPL, para poder redistribuirlo).
+; yt-dlp/ffmpeg/ffprobe/deno (ver tools\README.md — ffmpeg/ffprobe deben ser
+; el build LGPL, nunca uno GPL, para poder redistribuirlo).
 ;
 ; Instalación por usuario (sin privilegios de administrador, sin UAC),
 ; consistente con cómo se distribuyen hoy herramientas de escritorio
@@ -49,6 +49,7 @@ Source: "{#PublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#ToolsDir}\yt-dlp.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
 Source: "{#ToolsDir}\ffmpeg.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
 Source: "{#ToolsDir}\ffprobe.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "{#ToolsDir}\deno.exe"; DestDir: "{app}\tools"; Flags: ignoreversion
 Source: "THIRD-PARTY-NOTICES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]

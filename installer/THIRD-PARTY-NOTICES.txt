@@ -25,6 +25,15 @@ FFmpeg compatible; el código fuente de FFmpeg está disponible en
 https://github.com/FFmpeg/FFmpeg.
 
 ------------------------------------------------------------------------------
+Deno (tools\deno.exe)
+------------------------------------------------------------------------------
+Licencia: MIT
+Proyecto: https://github.com/denoland/deno
+
+Runtime de JavaScript que yt-dlp usa para resolver el desafío de firma que
+YouTube exige antes de autorizar la descarga de los streams de video/audio.
+
+------------------------------------------------------------------------------
 WPF-UI
 ------------------------------------------------------------------------------
 Licencia: MIT

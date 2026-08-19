@@ -34,11 +34,11 @@ $version = "1.0.0"
 Write-Host "== DownloadYou -- build de distribucion ($version) ==" -ForegroundColor Cyan
 
 # --- Verificar que las herramientas externas reales esten presentes ---
-$requiredTools = "yt-dlp.exe", "ffmpeg.exe", "ffprobe.exe"
+$requiredTools = "yt-dlp.exe", "ffmpeg.exe", "ffprobe.exe", "deno.exe"
 foreach ($tool in $requiredTools) {
     $toolPath = Join-Path $toolsDir $tool
     if (-not (Test-Path $toolPath)) {
-        throw "Falta $toolPath. Ver tools\README.md -- ffmpeg/ffprobe deben ser el build LGPL de BtbN/FFmpeg-Builds, nunca un build GPL."
+        throw "Falta $toolPath. Ver tools\README.md -- ffmpeg/ffprobe deben ser el build LGPL de BtbN/FFmpeg-Builds (nunca un build GPL); deno.exe es opcional para la app pero requerido para que este script arme la distribucion completa."
     }
 }
 

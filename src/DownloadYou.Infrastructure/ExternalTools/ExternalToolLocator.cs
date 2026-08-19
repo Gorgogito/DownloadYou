@@ -10,7 +10,8 @@ public sealed class ExternalToolLocator(IOptions<ToolsOptions> toolsOptions) : I
     {
         [ExternalTool.YtDlp] = "yt-dlp.exe",
         [ExternalTool.FfMpeg] = "ffmpeg.exe",
-        [ExternalTool.FfProbe] = "ffprobe.exe"
+        [ExternalTool.FfProbe] = "ffprobe.exe",
+        [ExternalTool.Deno] = "deno.exe"
     };
 
     public Task<string> ResolveAsync(ExternalTool tool, CancellationToken cancellationToken = default)

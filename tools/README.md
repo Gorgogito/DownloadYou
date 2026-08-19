@@ -7,6 +7,10 @@ Coloca aquí los ejecutables que el prototipo invoca como procesos externos:
 
   gyan.dev (la fuente históricamente sugerida acá) dejó de publicar builds LGPL de ffmpeg/ffprobe — todos sus builds actuales son GPLv3 (`--enable-gpl`, con libx264/libx265). No los uses para el instalador redistribuible: la app solo necesita `-c copy` (remux) y `libmp3lame` (extracción a MP3), ninguno de los dos requiere codificadores GPL, así que el build LGPL de BtbN cubre todo lo que este proyecto usa sin arrastrar la licencia GPL a la distribución completa (ver §16 del documento de arquitectura).
 
+- `deno.exe` — https://github.com/denoland/deno/releases (asset `deno-x86_64-pc-windows-msvc.zip`) o `winget install DenoLand.Deno`. MIT.
+
+  YouTube exige resolver un desafío de JavaScript (n-challenge) para autorizar la descarga real de los streams; sin un runtime de JS, yt-dlp lo advierte explícitamente ("YouTube extraction without a JS runtime has been deprecated") y el cliente que elige por defecto puede devolver HTTP 403 aunque el análisis de metadatos funcione bien. **Opcional pero fuertemente recomendado**: `YtDlpVideoSource` sigue funcionando sin él (modo degradado, yt-dlp emite su propia advertencia y puede que falten formatos), pero para que las descargas funcionen de forma confiable hace falta.
+
 `ExternalToolLocator` busca en esta carpeta (subiendo desde el directorio de salida del build hasta la raíz del repo) y, si no encuentra el ejecutable, en el `PATH` del sistema. No es necesario copiar nada al directorio `bin/` del proyecto.
 
 Verifica el checksum SHA-256 de cada binario contra el publicado en la página oficial de descargas antes de usarlo.

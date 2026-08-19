@@ -43,10 +43,11 @@ public sealed class YtDlpVideoSource(
     public async Task<MediaInfo> AnalyzeAsync(string url, Action<string>? onOutputLine = null, CancellationToken cancellationToken = default)
     {
         var exePath = await toolLocator.ResolveAsync(ExternalTool.YtDlp, cancellationToken);
+        var youtubeArgs = await BuildYouTubeArgsAsync(cancellationToken);
 
         var result = await processRunner.RunAsync(
             exePath,
-            ["--dump-json", "--no-playlist", "--no-warnings", url],
+            ["--dump-json", "--no-playlist", "--no-warnings", .. youtubeArgs, url],
             onOutputLine,
             onOutputLine,
             cancellationToken);
@@ -103,6 +104,7 @@ public sealed class YtDlpVideoSource(
         CancellationToken cancellationToken)
     {
         var exePath = await toolLocator.ResolveAsync(ExternalTool.YtDlp, cancellationToken);
+        var youtubeArgs = await BuildYouTubeArgsAsync(cancellationToken);
 
         void HandleStandardOutput(string line)
         {
@@ -126,6 +128,7 @@ public sealed class YtDlpVideoSource(
                 "--no-playlist",
                 "--progress-template",
                 $"download:{YtDlpProgressParser.LinePrefix}%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s",
+                .. youtubeArgs,
                 "-o", outputFilePath,
                 url
             ],
@@ -143,5 +146,36 @@ public sealed class YtDlpVideoSource(
         {
             throw new InvalidOperationException($"yt-dlp reportó éxito pero no se encontró el archivo esperado en '{outputFilePath}'.");
         }
+    }
+
+    /// <summary>
+    /// YouTube empezó a exigir resolver un desafío de JavaScript (n-challenge) para
+    /// autorizar la descarga real de los streams; sin eso, el cliente que yt-dlp elige por
+    /// defecto (android_vr) devuelve HTTP 403 aunque el análisis de metadatos funcione bien.
+    /// Se listan varios clientes en vez de forzar uno solo: cada cliente expone un catálogo
+    /// de formatos ligeramente distinto (un video puede tener el formato X solo vía "mweb" y
+    /// el formato Y solo vía "web_embedded"), así que restringir a un único cliente hace que
+    /// falten formatos que antes sí estaban disponibles. yt-dlp combina los catálogos y usa,
+    /// para cada formato elegido, la URL del cliente que lo ofreció.
+    /// Si no hay un runtime de JS (deno) empaquetado, se sigue intentando igual — yt-dlp emite
+    /// su propia advertencia y puede que falten formatos, pero no bloquea nada que ya
+    /// funcionara antes de este cambio.
+    /// </summary>
+    private async Task<string[]> BuildYouTubeArgsAsync(CancellationToken cancellationToken)
+    {
+        var args = new List<string> { "--extractor-args", "youtube:player_client=web_embedded,android_vr,tv,mweb" };
+
+        try
+        {
+            var denoPath = await toolLocator.ResolveAsync(ExternalTool.Deno, cancellationToken);
+            args.Add("--js-runtimes");
+            args.Add($"deno:{denoPath}");
+        }
+        catch (ExternalToolNotFoundException)
+        {
+            // Degradado, no fatal: ver el comentario de este método.
+        }
+
+        return [.. args];
     }
 }
