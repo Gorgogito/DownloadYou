@@ -1,6 +1,6 @@
 namespace DownloadYou.Presentation.Formatting;
 
-internal static class DisplayFormat
+public static class DisplayFormat
 {
     public static string Duration(TimeSpan duration) =>
         duration.Hours > 0 ? duration.ToString(@"h\:mm\:ss") : duration.ToString(@"mm\:ss");
