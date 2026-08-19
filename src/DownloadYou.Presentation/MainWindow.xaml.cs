@@ -1,10 +1,12 @@
 using System.Windows;
 using DownloadYou.Presentation.ViewModels;
 using Microsoft.Win32;
+using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
 
 namespace DownloadYou.Presentation;
 
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
     private readonly MainViewModel _viewModel;
 
@@ -13,6 +15,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+
+        SystemThemeWatcher.Watch(this, WindowBackdropType.Mica, true);
     }
 
     private void BrowseFolder_Click(object sender, RoutedEventArgs e)

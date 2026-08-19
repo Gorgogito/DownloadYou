@@ -7,6 +7,7 @@ using DownloadYou.Application.Diagnostics;
 using DownloadYou.Application.Services;
 using DownloadYou.Domain.Entities;
 using DownloadYou.Domain.Enums;
+using DownloadYou.Presentation.Models;
 
 namespace DownloadYou.Presentation.ViewModels;
 
@@ -19,11 +20,13 @@ public sealed partial class MainViewModel(
 {
     private const string DefaultFileNameTemplate = "{title} - {author} [{quality}].{ext}";
     private const int DefaultAudioBitrateKbps = 192;
+    private static readonly string[] PipelineStageNames = ["Analizando", "Descargando", "Convirtiendo", "Verificando", "Finalizado"];
 
     private CancellationTokenSource? _downloadCts;
 
     public ObservableCollection<string> LogLines { get; } = [];
     public ObservableCollection<FormatOption> AvailableFormats { get; } = [];
+    public ObservableCollection<PipelineStepViewModel> PipelineSteps { get; } = [];
 
     [ObservableProperty]
     private bool _isRunning;
@@ -39,6 +42,9 @@ public sealed partial class MainViewModel(
 
     [ObservableProperty]
     private MediaInfo? _mediaInfo;
+
+    [ObservableProperty]
+    private bool _hasMediaInfo;
 
     [ObservableProperty]
     private string _analysisStatus = "Pega una URL de YouTube y presiona Analizar.";
@@ -74,7 +80,7 @@ public sealed partial class MainViewModel(
     private string _downloadEtaLabel = string.Empty;
 
     [ObservableProperty]
-    private string _pipelineLabel = string.Empty;
+    private JobStatus? _currentJobStatus;
 
     [RelayCommand(CanExecute = nameof(CanRunDiagnostics))]
     private async Task RunDiagnosticsAsync()
@@ -148,6 +154,18 @@ public sealed partial class MainViewModel(
 
     partial void OnIsAnalyzingChanged(bool value) => AnalyzeCommand.NotifyCanExecuteChanged();
 
+    partial void OnMediaInfoChanged(MediaInfo? value)
+    {
+        HasMediaInfo = value is not null;
+        DownloadCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand]
+    private void SelectVideoKind() => IsVideoKind = true;
+
+    [RelayCommand]
+    private void SelectAudioKind() => IsAudioMp3Kind = true;
+
     partial void OnIsVideoKindChanged(bool value)
     {
         if (value)
@@ -207,6 +225,7 @@ public sealed partial class MainViewModel(
         }
         catch (NoCompatibleAudioStreamException ex)
         {
+            CurrentJobStatus = JobStatus.Failed;
             DownloadStatus = $"Error: {ex.Message}";
         }
         finally
@@ -226,8 +245,6 @@ public sealed partial class MainViewModel(
         CancelDownloadCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnMediaInfoChanged(MediaInfo? value) => DownloadCommand.NotifyCanExecuteChanged();
-
     partial void OnSelectedFormatChanged(FormatOption? value) => DownloadCommand.NotifyCanExecuteChanged();
 
     partial void OnTargetFolderChanged(string value) => DownloadCommand.NotifyCanExecuteChanged();
@@ -244,7 +261,8 @@ public sealed partial class MainViewModel(
         DownloadedSizeLabel = FormatSize(job.DownloadedBytes, job.TotalBytes);
         DownloadEtaLabel = FormatEta(job.Eta);
         DownloadStatus = job.Status.ToString();
-        PipelineLabel = BuildPipelineLabel(job.Status);
+        CurrentJobStatus = job.Status;
+        RebuildPipelineSteps(job.Status);
     }
 
     private void ResetDownloadProgress()
@@ -254,35 +272,50 @@ public sealed partial class MainViewModel(
         DownloadedSizeLabel = string.Empty;
         DownloadEtaLabel = string.Empty;
         DownloadStatus = string.Empty;
-        PipelineLabel = string.Empty;
+        CurrentJobStatus = null;
+        PipelineSteps.Clear();
     }
 
-    private static string BuildPipelineLabel(JobStatus status)
+    private void RebuildPipelineSteps(JobStatus status)
     {
+        PipelineSteps.Clear();
+
         if (status is JobStatus.Failed or JobStatus.Canceled)
         {
-            return status == JobStatus.Failed ? "✗ Error" : "✗ Cancelado";
+            var failedIndex = status == JobStatus.Failed ? CurrentPipelineIndex(status) : PipelineStageNames.Length - 1;
+            for (var i = 0; i < PipelineStageNames.Length; i++)
+            {
+                var state = i < failedIndex ? PipelineStepState.Done : i == failedIndex ? PipelineStepState.Error : PipelineStepState.Pending;
+                PipelineSteps.Add(new PipelineStepViewModel(PipelineStageNames[i], state));
+            }
+            return;
         }
-
-        string[] stages = ["Analizando", "Descargando", "Convirtiendo", "Verificando", "Finalizado"];
 
         if (status == JobStatus.Completed)
         {
-            return string.Join("   ", stages.Select(name => $"✓ {name}"));
+            foreach (var name in PipelineStageNames)
+            {
+                PipelineSteps.Add(new PipelineStepViewModel(name, PipelineStepState.Done));
+            }
+            return;
         }
 
-        var currentIndex = status switch
+        var currentIndex = CurrentPipelineIndex(status);
+        for (var i = 0; i < PipelineStageNames.Length; i++)
         {
-            JobStatus.Queued or JobStatus.Analyzing => 0,
-            JobStatus.Downloading => 1,
-            JobStatus.Converting => 2,
-            JobStatus.Verifying => 3,
-            _ => 0
-        };
-
-        return string.Join("   ", stages.Select((name, i) =>
-            i < currentIndex ? $"✓ {name}" : i == currentIndex ? $"● {name}" : $"○ {name}"));
+            var state = i < currentIndex ? PipelineStepState.Done : i == currentIndex ? PipelineStepState.Current : PipelineStepState.Pending;
+            PipelineSteps.Add(new PipelineStepViewModel(PipelineStageNames[i], state));
+        }
     }
+
+    private static int CurrentPipelineIndex(JobStatus status) => status switch
+    {
+        JobStatus.Queued or JobStatus.Analyzing => 0,
+        JobStatus.Downloading => 1,
+        JobStatus.Converting => 2,
+        JobStatus.Verifying => 3,
+        _ => 0
+    };
 
     private static string FormatDuration(TimeSpan duration) =>
         duration.Hours > 0 ? duration.ToString(@"h\:mm\:ss") : duration.ToString(@"mm\:ss");

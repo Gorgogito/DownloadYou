@@ -5,6 +5,7 @@ using DownloadYou.Infrastructure.DependencyInjection;
 using DownloadYou.Presentation.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Wpf.Ui.Appearance;
 
 namespace DownloadYou.Presentation;
 
@@ -28,6 +29,8 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        ApplicationThemeManager.ApplySystemTheme();
 
         await _host.StartAsync();
 

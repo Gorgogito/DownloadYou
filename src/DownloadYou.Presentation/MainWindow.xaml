@@ -1,136 +1,276 @@
-<Window x:Class="DownloadYou.Presentation.MainWindow"
+<ui:FluentWindow x:Class="DownloadYou.Presentation.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DownloadYou.Presentation"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:conv="clr-namespace:DownloadYou.Presentation.Converters"
         mc:Ignorable="d"
-        Title="DownloadYou — Prototipo técnico" Height="880" Width="860"
-        WindowStartupLocation="CenterScreen">
+        Title="DownloadYou" Height="980" Width="920" MinWidth="760" MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        ExtendsContentIntoTitleBar="True"
+        WindowBackdropType="Mica"
+        WindowCornerPreference="Round">
     <Window.Resources>
         <conv:ThumbnailUrlToImageConverter x:Key="ThumbnailConverter"/>
+        <conv:BoolToAppearanceConverter x:Key="BoolToAppearance"/>
+        <conv:PercentToStarWidthConverter x:Key="PercentToStar"/>
+        <conv:PipelineStepStateToSymbolConverter x:Key="StepSymbol"/>
+        <conv:JobStatusToInfoBarSeverityConverter x:Key="StatusSeverity"/>
+        <conv:NotNullConverter x:Key="NotNull"/>
+        <conv:NotNullToVisibilityConverter x:Key="NotNullToVis"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <Style x:Key="StepIconStyle" TargetType="ui:SymbolIcon">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Foreground" Value="#9AA0A6"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="Done">
+                    <Setter Property="Foreground" Value="#2E7D32"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Current">
+                    <Setter Property="Foreground" Value="#0067C0"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Error">
+                    <Setter Property="Foreground" Value="#C62828"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="StepLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#9AA0A6"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="Done">
+                    <Setter Property="Foreground" Value="#2E7D32"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Current">
+                    <Setter Property="Foreground" Value="#0067C0"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Error">
+                    <Setter Property="Foreground" Value="#C62828"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
-    <Grid Margin="20">
+
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="200"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="0,0,0,4">
-            <TextBlock Text="Fase 4 — Conversión" FontSize="18" FontWeight="Bold"/>
-            <TextBlock Text="Analiza, descarga y — si hace falta unir video+audio o convertir a MP3 — convierte y verifica con FFmpeg/ffprobe."
-                       Foreground="#666" Margin="0,4,0,0" TextWrapping="Wrap"/>
-        </StackPanel>
+        <ui:TitleBar Grid.Row="0" Title="DownloadYou">
+            <ui:TitleBar.Icon>
+                <ui:SymbolIcon Symbol="ArrowDownload24"/>
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,14,0,4">
-            <Button Content="Probar motores (yt-dlp / ffmpeg)"
-                    Command="{Binding RunDiagnosticsCommand}"
-                    Padding="14,6"/>
-            <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" Margin="16,0,0,0" FontWeight="SemiBold"/>
-        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,4,24,24" MaxWidth="760" HorizontalAlignment="Stretch">
 
-        <Separator Grid.Row="2" Margin="0,8,0,10"/>
+                <TextBlock Text="Analiza, descarga y convierte contenido de YouTube."
+                           FontSize="13" Opacity="0.65" Margin="0,0,0,16"/>
 
-        <Grid Grid.Row="3">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBox Grid.Column="0" Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}"
-                      Padding="6" VerticalContentAlignment="Center"
-                      ToolTip="https://www.youtube.com/watch?v=..."/>
-            <Button Grid.Column="1" Content="Analizar" Command="{Binding AnalyzeCommand}"
-                    Padding="14,6" Margin="8,0,0,0"/>
-        </Grid>
-
-        <TextBlock Grid.Row="4" Text="{Binding AnalysisStatus}" Margin="0,8,0,10" TextWrapping="Wrap" FontWeight="SemiBold"/>
-
-        <Grid Grid.Row="5">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <Border Grid.Column="0" Background="#EEE" CornerRadius="4">
-                <Image Source="{Binding MediaInfo.ThumbnailUrl, Converter={StaticResource ThumbnailConverter}}"
-                       Stretch="Uniform" Margin="4"/>
-            </Border>
-
-            <ListBox Grid.Column="1" Margin="12,0,0,0" ItemsSource="{Binding AvailableFormats}"
-                      SelectedItem="{Binding SelectedFormat}"
-                      BorderThickness="1" BorderBrush="#DDD">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid Margin="4,3">
+                <!-- Analizar -->
+                <ui:CardControl Margin="0,0,0,12">
+                    <ui:CardControl.Icon>
+                        <ui:SymbolIcon Symbol="Search24"/>
+                    </ui:CardControl.Icon>
+                    <ui:CardControl.Header>
+                        <ui:TextBlock Text="Analizar" FontTypography="BodyStrong"/>
+                    </ui:CardControl.Header>
+                    <StackPanel MinWidth="380">
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="70"/>
-                                <ColumnDefinition Width="120"/>
-                                <ColumnDefinition Width="70"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox Grid.Column="0" Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}"
+                                        PlaceholderText="https://www.youtube.com/watch?v=..." ClearButtonEnabled="True">
+                                <ui:TextBox.Icon>
+                                    <ui:SymbolIcon Symbol="Link24"/>
+                                </ui:TextBox.Icon>
+                            </ui:TextBox>
+                            <ui:Button Grid.Column="1" Content="Analizar" Command="{Binding AnalyzeCommand}"
+                                       Appearance="Primary" Margin="8,0,0,0">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="Search24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                        </Grid>
+                        <TextBlock Text="{Binding AnalysisStatus}" Margin="0,8,0,0" TextWrapping="Wrap" FontSize="12" Opacity="0.75"/>
+                    </StackPanel>
+                </ui:CardControl>
+
+                <!-- Información -->
+                <ui:Card Margin="0,0,0,12" Visibility="{Binding HasMediaInfo, Converter={StaticResource BoolToVis}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="160"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" CornerRadius="6" Background="#22808080" ClipToBounds="True">
+                            <Image Source="{Binding MediaInfo.ThumbnailUrl, Converter={StaticResource ThumbnailConverter}}" Stretch="UniformToFill"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                            <ui:TextBlock Text="{Binding MediaInfo.Title}" FontTypography="Subtitle" TextWrapping="Wrap"/>
+                            <ui:TextBlock Text="{Binding MediaInfo.Author}" Appearance="Secondary" FontTypography="Body" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </ui:Card>
+
+                <!-- Formato -->
+                <ui:CardControl Margin="0,0,0,12" Visibility="{Binding HasMediaInfo, Converter={StaticResource BoolToVis}}">
+                    <ui:CardControl.Icon>
+                        <ui:SymbolIcon Symbol="List24"/>
+                    </ui:CardControl.Icon>
+                    <ui:CardControl.Header>
+                        <ui:TextBlock Text="Formato y calidad" FontTypography="BodyStrong"/>
+                    </ui:CardControl.Header>
+                    <ui:ListView MinWidth="380" Height="200" ItemsSource="{Binding AvailableFormats}" SelectedItem="{Binding SelectedFormat}">
+                        <ui:ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Tipo" DisplayMemberBinding="{Binding Kind}" Width="90"/>
+                                <GridViewColumn Header="Calidad" DisplayMemberBinding="{Binding DisplayLabel}" Width="150"/>
+                                <GridViewColumn Header="Contenedor" DisplayMemberBinding="{Binding Container}" Width="100"/>
+                                <GridViewColumn Header="Id" DisplayMemberBinding="{Binding FormatId}" Width="70"/>
+                            </GridView>
+                        </ui:ListView.View>
+                    </ui:ListView>
+                </ui:CardControl>
+
+                <!-- Descarga -->
+                <ui:CardControl Margin="0,0,0,12" Visibility="{Binding HasMediaInfo, Converter={StaticResource BoolToVis}}">
+                    <ui:CardControl.Icon>
+                        <ui:SymbolIcon Symbol="ArrowDownload24"/>
+                    </ui:CardControl.Icon>
+                    <ui:CardControl.Header>
+                        <ui:TextBlock Text="Descarga" FontTypography="BodyStrong"/>
+                    </ui:CardControl.Header>
+                    <StackPanel MinWidth="380">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button Content="Video" Command="{Binding SelectVideoKindCommand}"
+                                       Appearance="{Binding IsVideoKind, Converter={StaticResource BoolToAppearance}}" Margin="0,0,8,0">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="Video24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                            <ui:Button Content="Audio MP3" Command="{Binding SelectAudioKindCommand}"
+                                       Appearance="{Binding IsAudioMp3Kind, Converter={StaticResource BoolToAppearance}}">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="MusicNote224"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                        </StackPanel>
+
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox Grid.Column="0" Text="{Binding TargetFolder, UpdateSourceTrigger=PropertyChanged}">
+                                <ui:TextBox.Icon>
+                                    <ui:SymbolIcon Symbol="Folder24"/>
+                                </ui:TextBox.Icon>
+                            </ui:TextBox>
+                            <ui:Button Grid.Column="1" Content="Examinar..." Margin="8,0,0,0" Click="BrowseFolder_Click"/>
+                        </Grid>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <ui:Button Content="Descargar" Command="{Binding DownloadCommand}" Appearance="Primary">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="ArrowDownload24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                            <ui:Button Content="Cancelar" Command="{Binding CancelDownloadCommand}" Margin="8,0,0,0">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="Dismiss24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                        </StackPanel>
+                    </StackPanel>
+                </ui:CardControl>
+
+                <!-- Progreso -->
+                <ui:CardControl Margin="0,0,0,12" Visibility="{Binding CurrentJobStatus, Converter={StaticResource NotNullToVis}}">
+                    <ui:CardControl.Icon>
+                        <ui:SymbolIcon Symbol="ArrowSync24"/>
+                    </ui:CardControl.Icon>
+                    <ui:CardControl.Header>
+                        <ui:TextBlock Text="Progreso" FontTypography="BodyStrong"/>
+                    </ui:CardControl.Header>
+                    <StackPanel MinWidth="380">
+                        <Border Height="10" CornerRadius="5" ClipToBounds="True" Background="#22808080">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{Binding DownloadProgressPercent, Converter={StaticResource PercentToStar}}"/>
+                                    <ColumnDefinition Width="{Binding DownloadProgressPercent, Converter={StaticResource PercentToStar}, ConverterParameter=Remaining}"/>
+                                </Grid.ColumnDefinitions>
+                                <Rectangle Grid.Column="0" Fill="#0067C0"/>
+                            </Grid>
+                        </Border>
+
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding Kind}" Foreground="#888" FontSize="11"/>
-                            <TextBlock Grid.Column="1" Text="{Binding DisplayLabel}" FontWeight="SemiBold"/>
-                            <TextBlock Grid.Column="2" Text="{Binding Container}" Foreground="#888"/>
-                            <TextBlock Grid.Column="3" Text="{Binding FormatId}" Foreground="#AAA" FontSize="11"/>
+                            <TextBlock Grid.Column="0" Text="{Binding DownloadSpeedLabel}" FontSize="12" Opacity="0.75"/>
+                            <TextBlock Grid.Column="1" Text="{Binding DownloadedSizeLabel}" FontSize="12" Opacity="0.75" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Text="{Binding DownloadEtaLabel}" FontSize="12" Opacity="0.75" HorizontalAlignment="Right"/>
                         </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </Grid>
 
-        <Separator Grid.Row="6" Margin="0,10,0,10"/>
+                        <ItemsControl ItemsSource="{Binding PipelineSteps}" Margin="0,14,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Rows="1"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                        <ui:SymbolIcon Symbol="{Binding State, Converter={StaticResource StepSymbol}}"
+                                                        Style="{StaticResource StepIconStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Name}" Style="{StaticResource StepLabelStyle}"
+                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-        <StackPanel Grid.Row="7">
-            <StackPanel Orientation="Horizontal">
-                <RadioButton Content="Video" GroupName="Kind" IsChecked="{Binding IsVideoKind}" VerticalAlignment="Center"/>
-                <RadioButton Content="Audio MP3" GroupName="Kind" IsChecked="{Binding IsAudioMp3Kind}" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                        <ui:InfoBar Title="Estado" Message="{Binding DownloadStatus}"
+                                    IsOpen="{Binding CurrentJobStatus, Converter={StaticResource NotNull}}"
+                                    Severity="{Binding CurrentJobStatus, Converter={StaticResource StatusSeverity}}"
+                                    IsClosable="False" Margin="0,14,0,0"/>
+                    </StackPanel>
+                </ui:CardControl>
+
+                <!-- Diagnóstico y registro -->
+                <ui:CardExpander Margin="0,0,0,12" IsExpanded="False">
+                    <ui:CardExpander.Icon>
+                        <ui:SymbolIcon Symbol="Wrench24"/>
+                    </ui:CardExpander.Icon>
+                    <ui:CardExpander.Header>
+                        <ui:TextBlock Text="Diagnóstico y registro técnico" FontTypography="BodyStrong"/>
+                    </ui:CardExpander.Header>
+                    <StackPanel MinWidth="380">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button Content="Probar motores (yt-dlp / ffmpeg)" Command="{Binding RunDiagnosticsCommand}">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="PlugDisconnected24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                            <TextBlock Text="{Binding Summary}" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="12"/>
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding LogLines}" Height="180" Margin="0,10,0,0"
+                                 FontFamily="Consolas" FontSize="11" Background="#111" Foreground="#ddd" BorderThickness="0"/>
+                    </StackPanel>
+                </ui:CardExpander>
+
             </StackPanel>
-
-            <Grid Margin="0,10,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="Carpeta:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBox Grid.Column="1" Text="{Binding TargetFolder, UpdateSourceTrigger=PropertyChanged}"
-                          Padding="6" VerticalContentAlignment="Center"/>
-                <Button Grid.Column="2" Content="Examinar..." Padding="10,6" Margin="8,0,0,0" Click="BrowseFolder_Click"/>
-            </Grid>
-
-            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                <Button Content="Descargar" Command="{Binding DownloadCommand}" Padding="16,6" FontWeight="SemiBold"/>
-                <Button Content="Cancelar" Command="{Binding CancelDownloadCommand}" Padding="16,6" Margin="8,0,0,0"/>
-            </StackPanel>
-        </StackPanel>
-
-        <StackPanel Grid.Row="8" Margin="0,12,0,10">
-            <ProgressBar Height="20" Minimum="0" Maximum="100" Value="{Binding DownloadProgressPercent, Mode=OneWay}"/>
-            <Grid Margin="0,6,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{Binding DownloadSpeedLabel}"/>
-                <TextBlock Grid.Column="1" Text="{Binding DownloadedSizeLabel}" HorizontalAlignment="Center"/>
-                <TextBlock Grid.Column="2" Text="{Binding DownloadEtaLabel}" HorizontalAlignment="Right"/>
-            </Grid>
-            <TextBlock Text="{Binding PipelineLabel}" Margin="0,6,0,0" FontFamily="Consolas" FontSize="12" Foreground="#444"/>
-            <TextBlock Text="{Binding DownloadStatus}" Margin="0,4,0,0" FontWeight="SemiBold" TextWrapping="Wrap"/>
-        </StackPanel>
-
-        <ListBox Grid.Row="9" ItemsSource="{Binding LogLines}"
-                  FontFamily="Consolas" FontSize="12" Background="#111" Foreground="#ddd"
-                  BorderThickness="0"/>
+        </ScrollViewer>
     </Grid>
-</Window>
+</ui:FluentWindow>
