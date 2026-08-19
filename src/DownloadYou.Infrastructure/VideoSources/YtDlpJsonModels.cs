@@ -20,4 +20,6 @@ internal sealed record YtDlpFormatJson(
     double? Vbr,
     double? Abr,
     long? Filesize,
-    long? FilesizeApprox);
+    long? FilesizeApprox,
+    string? Language,
+    int? LanguagePreference);

@@ -83,7 +83,11 @@ public static class YtDlpMetadataParser
             Fps: hasVideo ? f.Fps : null,
             VideoBitrateKbps: videoBitrate,
             AudioBitrateKbps: audioBitrate,
-            ApproxFileSizeBytes: f.Filesize ?? f.FilesizeApprox);
+            ApproxFileSizeBytes: f.Filesize ?? f.FilesizeApprox,
+            // Un stream sin audio (video-only) no tiene idioma propio; yt-dlp a veces igual
+            // manda "language" ahí (heredado del video) y no queremos que confunda al usuario.
+            Language: hasAudio ? f.Language : null,
+            LanguagePreference: f.LanguagePreference ?? 0);
     }
 
     private static bool IsPresent(string? codec) => !string.IsNullOrWhiteSpace(codec) && codec != "none";

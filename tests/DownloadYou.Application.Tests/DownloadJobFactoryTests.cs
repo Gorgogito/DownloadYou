@@ -68,4 +68,62 @@ public class DownloadJobFactoryTests
         Assert.Null(job.PairedAudioFormat);
         Assert.True(job.RequiresConversion);
     }
+
+    [Fact]
+    public void Create_PrefersRequestedLanguage_OverContainerFamilyAndBitrate()
+    {
+        // AudioOnly128 (m4a, misma familia que el video) ganaría por defecto, pero el usuario
+        // pidió español explícitamente y solo el webm/opus de menor bitrate es español.
+        var audioEnglish = AudioOnly128 with { Language = "en" };
+        var audioSpanish = AudioOnly160 with { Language = "es" };
+        var mediaInfo = BuildMediaInfo(VideoOnly1080p, audioEnglish, audioSpanish);
+
+        var job = DownloadJobFactory.Create(
+            mediaInfo, VideoOnly1080p, DownloadKind.Video, "C:\\out", "{title}.{ext}", 192,
+            preferredAudioLanguage: "es");
+
+        Assert.Equal("251", job.PairedAudioFormat?.FormatId);
+        Assert.Equal("es", job.PairedAudioFormat?.Language);
+    }
+
+    [Fact]
+    public void Create_MatchesRequestedLanguage_CaseInsensitively()
+    {
+        var audioSpanish = AudioOnly160 with { Language = "es" };
+        var mediaInfo = BuildMediaInfo(VideoOnly1080p, audioSpanish);
+
+        var job = DownloadJobFactory.Create(
+            mediaInfo, VideoOnly1080p, DownloadKind.Video, "C:\\out", "{title}.{ext}", 192,
+            preferredAudioLanguage: "ES");
+
+        Assert.Equal("251", job.PairedAudioFormat?.FormatId);
+    }
+
+    [Fact]
+    public void Create_FallsBackToDefaultPairing_WhenRequestedLanguageIsNotAvailable()
+    {
+        // No hay pista en "fr" para este video en particular; no debe fallar, solo ignorar
+        // la preferencia y usar el criterio normal (familia de contenedor, después bitrate).
+        var audioEnglish = AudioOnly128 with { Language = "en" };
+        var mediaInfo = BuildMediaInfo(VideoOnly1080p, audioEnglish);
+
+        var job = DownloadJobFactory.Create(
+            mediaInfo, VideoOnly1080p, DownloadKind.Video, "C:\\out", "{title}.{ext}", 192,
+            preferredAudioLanguage: "fr");
+
+        Assert.Equal("140", job.PairedAudioFormat?.FormatId);
+    }
+
+    [Fact]
+    public void Create_IgnoresLanguagePreference_WhenNotSpecified()
+    {
+        var audioEnglish = AudioOnly128 with { Language = "en" };
+        var audioSpanish = AudioOnly160 with { Language = "es" };
+        var mediaInfo = BuildMediaInfo(VideoOnly1080p, audioEnglish, audioSpanish);
+
+        var job = DownloadJobFactory.Create(mediaInfo, VideoOnly1080p, DownloadKind.Video, "C:\\out", "{title}.{ext}", 192);
+
+        // Sin preferencia, gana el criterio de siempre: familia de contenedor compatible (m4a/mp4).
+        Assert.Equal("140", job.PairedAudioFormat?.FormatId);
+    }
 }

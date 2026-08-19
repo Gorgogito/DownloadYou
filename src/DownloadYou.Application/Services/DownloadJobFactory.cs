@@ -18,17 +18,28 @@ public static class DownloadJobFactory
         string targetDirectory,
         string fileNameTemplate,
         int targetAudioBitrateKbps,
-        ExistingFileBehavior existingFileBehavior = ExistingFileBehavior.Rename)
+        ExistingFileBehavior existingFileBehavior = ExistingFileBehavior.Rename,
+        string? preferredAudioLanguage = null)
     {
         FormatOption? pairedAudio = null;
 
         if (kind == DownloadKind.Video && selectedFormat.Kind == StreamKind.VideoOnly)
         {
+            var candidates = mediaInfo.AvailableFormats.Where(f => f.Kind == StreamKind.AudioOnly);
+
+            // Si el video tiene varios idiomas de audio (doblajes) y el usuario eligió uno,
+            // priorizarlo por sobre todo lo demás; si ese idioma no está disponible para
+            // este video (raro, pero posible), cae al comportamiento de siempre sin fallar.
+            if (!string.IsNullOrWhiteSpace(preferredAudioLanguage) &&
+                candidates.Any(f => string.Equals(f.Language, preferredAudioLanguage, StringComparison.OrdinalIgnoreCase)))
+            {
+                candidates = candidates.Where(f => string.Equals(f.Language, preferredAudioLanguage, StringComparison.OrdinalIgnoreCase));
+            }
+
             // Prioriza un audio de la misma familia de contenedor que el video: permite que
             // FfmpegMediaProcessor.MuxAsync remuxe con "-c copy" (rápido, sin pérdida) en el
             // caso común, en vez de depender de su fallback de transcodificación de audio.
-            pairedAudio = mediaInfo.AvailableFormats
-                .Where(f => f.Kind == StreamKind.AudioOnly)
+            pairedAudio = candidates
                 .OrderByDescending(f => ContainerFamily(f.Container) == ContainerFamily(selectedFormat.Container))
                 .ThenByDescending(f => f.AudioBitrateKbps ?? 0)
                 .FirstOrDefault()

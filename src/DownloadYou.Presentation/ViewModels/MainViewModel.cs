@@ -58,6 +58,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<string> LogLines { get; } = [];
     public ObservableCollection<FormatOption> AvailableFormats { get; } = [];
+    public ObservableCollection<AudioLanguageOption> AvailableAudioLanguages { get; } = [];
     public ObservableCollection<DownloadJobViewModel> QueueItems { get; } = [];
     public ObservableCollection<HistoryEntryViewModel> HistoryEntries { get; } = [];
     public ObservableCollection<HistoryEntryViewModel> LibraryEntries { get; } = [];
@@ -85,6 +86,12 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private FormatOption? _selectedFormat;
+
+    [ObservableProperty]
+    private AudioLanguageOption? _selectedAudioLanguage;
+
+    [ObservableProperty]
+    private bool _hasMultipleAudioLanguages;
 
     [ObservableProperty]
     private bool _isVideoKind;
@@ -146,6 +153,9 @@ public sealed partial class MainViewModel : ObservableObject
         MediaInfo = null;
         SelectedFormat = null;
         AvailableFormats.Clear();
+        AvailableAudioLanguages.Clear();
+        SelectedAudioLanguage = null;
+        HasMultipleAudioLanguages = false;
         LogLines.Clear();
         AnalysisStatus = "Analizando...";
         EnqueueStatus = string.Empty;
@@ -162,6 +172,8 @@ public sealed partial class MainViewModel : ObservableObject
                 AvailableFormats.Add(format);
             }
 
+            PopulateAudioLanguages(info);
+
             AnalysisStatus = $"{info.Title} · {DisplayFormat.Duration(info.Duration)} · {info.AvailableFormats.Count} formatos disponibles";
         }
         catch (InvalidYouTubeUrlException)
@@ -176,6 +188,37 @@ public sealed partial class MainViewModel : ObservableObject
         {
             IsAnalyzing = false;
         }
+    }
+
+    /// <summary>
+    /// Algunos videos ofrecen la misma pista de audio en varios idiomas (doblajes) — yt-dlp
+    /// expone un FormatOption.Language por cada una. Solo tiene sentido mostrar el selector
+    /// cuando hay más de un idioma real disponible; si todo el audio es del mismo idioma
+    /// (el caso normal), no se agrega nada y la app se comporta como siempre.
+    /// </summary>
+    private void PopulateAudioLanguages(MediaInfo info)
+    {
+        var languages = info.AvailableFormats
+            .Where(f => f.Kind == StreamKind.AudioOnly && !string.IsNullOrWhiteSpace(f.Language))
+            .GroupBy(f => f.Language!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new AudioLanguageOption(g.Key, LanguageNames.Resolve(g.Key), g.Max(f => f.LanguagePreference) > 0))
+            .OrderByDescending(l => l.IsOriginal)
+            .ThenBy(l => l.DisplayName)
+            .ToList();
+
+        HasMultipleAudioLanguages = languages.Count > 1;
+
+        if (!HasMultipleAudioLanguages)
+        {
+            return;
+        }
+
+        foreach (var language in languages)
+        {
+            AvailableAudioLanguages.Add(language);
+        }
+
+        SelectedAudioLanguage = languages.FirstOrDefault(l => l.IsOriginal) ?? languages[0];
     }
 
     private bool CanAnalyze() => !IsAnalyzing;
@@ -224,7 +267,7 @@ public sealed partial class MainViewModel : ObservableObject
             var kind = IsAudioMp3Kind ? DownloadKind.AudioMp3 : DownloadKind.Video;
             var job = DownloadJobFactory.Create(
                 MediaInfo, SelectedFormat, kind, TargetFolder, settings.FileNameTemplate,
-                settings.DefaultAudioBitrateKbps, settings.ExistingFileBehavior);
+                settings.DefaultAudioBitrateKbps, settings.ExistingFileBehavior, SelectedAudioLanguage?.Code);
 
             _downloadQueue.Enqueue(job);
             EnqueueStatus = $"Agregado a la cola: {job.MediaInfo.Title} ({job.SelectedFormat.DisplayLabel}).";
