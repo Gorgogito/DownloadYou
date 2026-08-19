@@ -1,0 +1,17 @@
+## .NET
+bin/
+obj/
+*.user
+
+## Herramientas externas de desarrollo (yt-dlp.exe, ffmpeg.exe, ffprobe.exe)
+tools/*
+!tools/.gitkeep
+!tools/README.md
+
+## Visual Studio / Rider
+.vs/
+.idea/
+*.suo
+
+## Build output
+artifacts/
