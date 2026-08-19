@@ -1,11 +1,26 @@
 using DownloadYou.Application.Abstractions;
 using DownloadYou.Domain.Entities;
 using DownloadYou.Infrastructure.Processes;
+using Polly;
+using Polly.Retry;
 
 namespace DownloadYou.Infrastructure.VideoSources;
 
-public sealed class YtDlpVideoSource(IExternalToolLocator toolLocator, ExternalProcessRunner processRunner) : IVideoSource
+public sealed class YtDlpVideoSource(
+    IExternalToolLocator toolLocator,
+    IExternalProcessRunner processRunner,
+    TimeSpan? retryBaseDelay = null) : IVideoSource
 {
+    private readonly ResiliencePipeline _downloadRetryPipeline = new ResiliencePipelineBuilder()
+        .AddRetry(new RetryStrategyOptions
+        {
+            ShouldHandle = new PredicateBuilder().Handle<InvalidOperationException>(ex => TransientErrorClassifier.IsTransient(ex.Message)),
+            MaxRetryAttempts = 3,
+            BackoffType = DelayBackoffType.Exponential,
+            Delay = retryBaseDelay ?? TimeSpan.FromSeconds(2)
+        })
+        .Build();
+
     public async Task<string> GetVersionAsync(Action<string>? onOutputLine = null, CancellationToken cancellationToken = default)
     {
         var exePath = await toolLocator.ResolveAsync(ExternalTool.YtDlp, cancellationToken);
@@ -51,6 +66,12 @@ public sealed class YtDlpVideoSource(IExternalToolLocator toolLocator, ExternalP
         return YtDlpMetadataParser.Parse(jsonLine, url);
     }
 
+    /// <summary>
+    /// Reintenta con backoff exponencial solo ante errores de red transitorios
+    /// (TransientErrorClassifier); un video privado/eliminado u otro error permanente
+    /// falla de inmediato. Cada reintento se beneficia del .part ya descargado por
+    /// yt-dlp — no vuelve a bajar bytes ya obtenidos.
+    /// </summary>
     public async Task DownloadAsync(
         string url,
         string formatId,
@@ -58,6 +79,28 @@ public sealed class YtDlpVideoSource(IExternalToolLocator toolLocator, ExternalP
         Action<DownloadProgressUpdate>? onProgress = null,
         Action<string>? onOutputLine = null,
         CancellationToken cancellationToken = default)
+    {
+        var attempt = 0;
+
+        await _downloadRetryPipeline.ExecuteAsync(async ct =>
+        {
+            attempt++;
+            if (attempt > 1)
+            {
+                onOutputLine?.Invoke($"[yt-dlp] reintento {attempt} para el formato '{formatId}'...");
+            }
+
+            await DownloadOnceAsync(url, formatId, outputFilePath, onProgress, onOutputLine, ct);
+        }, cancellationToken);
+    }
+
+    private async Task DownloadOnceAsync(
+        string url,
+        string formatId,
+        string outputFilePath,
+        Action<DownloadProgressUpdate>? onProgress,
+        Action<string>? onOutputLine,
+        CancellationToken cancellationToken)
     {
         var exePath = await toolLocator.ResolveAsync(ExternalTool.YtDlp, cancellationToken);
 

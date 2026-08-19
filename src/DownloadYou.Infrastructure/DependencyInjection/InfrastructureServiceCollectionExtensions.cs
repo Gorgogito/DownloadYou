@@ -16,7 +16,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.Configure<ToolsOptions>(configuration.GetSection(ToolsOptions.SectionName));
 
         services.AddSingleton<IExternalToolLocator, ExternalToolLocator>();
-        services.AddSingleton<ExternalProcessRunner>();
+        services.AddSingleton<IExternalProcessRunner, ExternalProcessRunner>();
         services.AddSingleton<IVideoSource, YtDlpVideoSource>();
         services.AddSingleton<IMediaProcessor, FfmpegMediaProcessor>();
 

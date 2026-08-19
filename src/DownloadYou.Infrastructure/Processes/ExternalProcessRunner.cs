@@ -2,7 +2,7 @@ using CliWrap;
 
 namespace DownloadYou.Infrastructure.Processes;
 
-public sealed class ExternalProcessRunner
+public sealed class ExternalProcessRunner : IExternalProcessRunner
 {
     public async Task<ExternalProcessResult> RunAsync(
         string executablePath,

@@ -56,19 +56,23 @@ public sealed class ConversionService(IMediaProcessor mediaProcessor)
             job.OutputFilePath = destination;
             job.Status = JobStatus.Completed;
             job.CompletedAt = DateTimeOffset.UtcNow;
+            TempCleanup.TryDeleteDirectory(stagingDir);
         }
         catch (OperationCanceledException)
         {
+            // Conserva PrimaryFilePath/PairedAudioFilePath: un Resume debe poder rehacer
+            // solo el paso de conversión (FFmpeg no soporta reanudar un mux a medias) sin
+            // volver a descargar los streams de origen.
             job.Status = JobStatus.Canceled;
         }
         catch (Exception ex)
         {
             job.Status = JobStatus.Failed;
             job.ErrorMessage = ex.Message;
+            TempCleanup.TryDeleteDirectory(stagingDir);
         }
         finally
         {
-            TempCleanup.TryDeleteDirectory(stagingDir);
             onProgressChanged?.Invoke();
         }
     }

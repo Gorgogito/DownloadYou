@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:DownloadYou.Presentation"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:conv="clr-namespace:DownloadYou.Presentation.Converters"
+        xmlns:vm="clr-namespace:DownloadYou.Presentation.ViewModels"
         mc:Ignorable="d"
         Title="DownloadYou" Height="980" Width="920" MinWidth="760" MinHeight="640"
         WindowStartupLocation="CenterScreen"
@@ -17,9 +18,7 @@
         <conv:BoolToAppearanceConverter x:Key="BoolToAppearance"/>
         <conv:PercentToStarWidthConverter x:Key="PercentToStar"/>
         <conv:PipelineStepStateToSymbolConverter x:Key="StepSymbol"/>
-        <conv:JobStatusToInfoBarSeverityConverter x:Key="StatusSeverity"/>
-        <conv:NotNullConverter x:Key="NotNull"/>
-        <conv:NotNullToVisibilityConverter x:Key="NotNullToVis"/>
+        <conv:CountToVisibilityConverter x:Key="CountToVis"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <Style x:Key="StepIconStyle" TargetType="ui:SymbolIcon">
@@ -53,6 +52,73 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <DataTemplate x:Key="QueueItemTemplate" DataType="{x:Type vm:DownloadJobViewModel}">
+            <ui:Card Margin="0,0,0,10">
+                <StackPanel MinWidth="380">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <ui:TextBlock Text="{Binding Title}" FontTypography="BodyStrong" TextWrapping="Wrap"/>
+                            <TextBlock FontSize="11" Opacity="0.7" Margin="0,2,0,0">
+                                <Run Text="{Binding KindLabel, Mode=OneWay}"/>
+                                <Run Text=" · "/>
+                                <Run Text="{Binding QualityLabel, Mode=OneWay}"/>
+                            </TextBlock>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <ui:Button Content="Pausar" Command="{Binding PauseCommand}" IsEnabled="{Binding CanPause}" Padding="8,4"/>
+                            <ui:Button Content="Reanudar" Command="{Binding ResumeCommand}" IsEnabled="{Binding CanResume}" Appearance="Primary" Margin="6,0,0,0" Padding="8,4"/>
+                            <ui:Button Content="Cancelar" Command="{Binding CancelCommand}" IsEnabled="{Binding CanCancel}" Margin="6,0,0,0" Padding="8,4"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Height="8" CornerRadius="4" ClipToBounds="True" Background="#22808080" Margin="0,10,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{Binding ProgressPercent, Converter={StaticResource PercentToStar}}"/>
+                                <ColumnDefinition Width="{Binding ProgressPercent, Converter={StaticResource PercentToStar}, ConverterParameter=Remaining}"/>
+                            </Grid.ColumnDefinitions>
+                            <Rectangle Grid.Column="0" Fill="#0067C0"/>
+                        </Grid>
+                    </Border>
+
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding SpeedLabel}" FontSize="11" Opacity="0.75"/>
+                        <TextBlock Grid.Column="1" Text="{Binding SizeLabel}" FontSize="11" Opacity="0.75" HorizontalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding EtaLabel}" FontSize="11" Opacity="0.75" HorizontalAlignment="Right"/>
+                    </Grid>
+
+                    <ItemsControl ItemsSource="{Binding PipelineSteps}" Margin="0,10,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="{Binding State, Converter={StaticResource StepSymbol}}"
+                                                    Style="{StaticResource StepIconStyle}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource StepLabelStyle}"
+                                                Margin="4,0,0,0" VerticalAlignment="Center" FontSize="11"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{Binding StatusLabel}" Margin="0,8,0,0" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ui:Card>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -179,73 +245,25 @@
                         </Grid>
 
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <ui:Button Content="Descargar" Command="{Binding DownloadCommand}" Appearance="Primary">
+                            <ui:Button Content="Agregar a la cola" Command="{Binding EnqueueCommand}" Appearance="Primary">
                                 <ui:Button.Icon>
                                     <ui:SymbolIcon Symbol="ArrowDownload24"/>
                                 </ui:Button.Icon>
                             </ui:Button>
-                            <ui:Button Content="Cancelar" Command="{Binding CancelDownloadCommand}" Margin="8,0,0,0">
-                                <ui:Button.Icon>
-                                    <ui:SymbolIcon Symbol="Dismiss24"/>
-                                </ui:Button.Icon>
-                            </ui:Button>
                         </StackPanel>
+                        <TextBlock Text="{Binding EnqueueStatus}" Margin="0,8,0,0" FontSize="12" Opacity="0.85" TextWrapping="Wrap"/>
                     </StackPanel>
                 </ui:CardControl>
 
-                <!-- Progreso -->
-                <ui:CardControl Margin="0,0,0,12" Visibility="{Binding CurrentJobStatus, Converter={StaticResource NotNullToVis}}">
+                <!-- Cola de descargas -->
+                <ui:CardControl Margin="0,0,0,12" Visibility="{Binding QueueItems.Count, Converter={StaticResource CountToVis}}">
                     <ui:CardControl.Icon>
                         <ui:SymbolIcon Symbol="ArrowSync24"/>
                     </ui:CardControl.Icon>
                     <ui:CardControl.Header>
-                        <ui:TextBlock Text="Progreso" FontTypography="BodyStrong"/>
+                        <ui:TextBlock Text="Cola de descargas" FontTypography="BodyStrong"/>
                     </ui:CardControl.Header>
-                    <StackPanel MinWidth="380">
-                        <Border Height="10" CornerRadius="5" ClipToBounds="True" Background="#22808080">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="{Binding DownloadProgressPercent, Converter={StaticResource PercentToStar}}"/>
-                                    <ColumnDefinition Width="{Binding DownloadProgressPercent, Converter={StaticResource PercentToStar}, ConverterParameter=Remaining}"/>
-                                </Grid.ColumnDefinitions>
-                                <Rectangle Grid.Column="0" Fill="#0067C0"/>
-                            </Grid>
-                        </Border>
-
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{Binding DownloadSpeedLabel}" FontSize="12" Opacity="0.75"/>
-                            <TextBlock Grid.Column="1" Text="{Binding DownloadedSizeLabel}" FontSize="12" Opacity="0.75" HorizontalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="{Binding DownloadEtaLabel}" FontSize="12" Opacity="0.75" HorizontalAlignment="Right"/>
-                        </Grid>
-
-                        <ItemsControl ItemsSource="{Binding PipelineSteps}" Margin="0,14,0,0">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <UniformGrid Rows="1"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <ui:SymbolIcon Symbol="{Binding State, Converter={StaticResource StepSymbol}}"
-                                                        Style="{StaticResource StepIconStyle}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding Name}" Style="{StaticResource StepLabelStyle}"
-                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <ui:InfoBar Title="Estado" Message="{Binding DownloadStatus}"
-                                    IsOpen="{Binding CurrentJobStatus, Converter={StaticResource NotNull}}"
-                                    Severity="{Binding CurrentJobStatus, Converter={StaticResource StatusSeverity}}"
-                                    IsClosable="False" Margin="0,14,0,0"/>
-                    </StackPanel>
+                    <ItemsControl MinWidth="380" ItemsSource="{Binding QueueItems}" ItemTemplate="{StaticResource QueueItemTemplate}"/>
                 </ui:CardControl>
 
                 <!-- Diagnóstico y registro -->

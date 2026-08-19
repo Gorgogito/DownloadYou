@@ -9,5 +9,6 @@ public enum JobStatus
     Verifying,
     Completed,
     Failed,
-    Canceled
+    Canceled,
+    Paused
 }

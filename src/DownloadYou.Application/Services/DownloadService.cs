@@ -5,10 +5,10 @@ using DownloadYou.Domain.Enums;
 namespace DownloadYou.Application.Services;
 
 /// <summary>
-/// Ejecuta la etapa de descarga de un job (sin cola todavía — Fase 6). Si el formato
-/// elegido ya está muxed, mueve el archivo final directamente y completa el job; si
-/// hace falta unir video+audio o convertir a MP3, deja el job en estado Converting
-/// con los archivos descargados listos para que la Fase 4 los procese.
+/// Ejecuta la etapa de descarga de un job. Si el formato elegido ya está muxed, mueve
+/// el archivo final directamente y completa el job; si hace falta unir video+audio o
+/// convertir a MP3, deja el job en estado Converting con los archivos descargados
+/// listos para que ConversionService los procese.
 /// </summary>
 public sealed class DownloadService(IVideoSource videoSource)
 {
@@ -22,7 +22,7 @@ public sealed class DownloadService(IVideoSource videoSource)
         job.Status = JobStatus.Downloading;
         job.ProgressPercent = 0;
 
-        var stagingDir = Path.Combine(Path.GetTempPath(), "DownloadYou", job.Id.ToString("N"));
+        var stagingDir = JobStagingPath.For(job.Id);
         Directory.CreateDirectory(stagingDir);
 
         try
@@ -77,8 +77,11 @@ public sealed class DownloadService(IVideoSource videoSource)
         }
         catch (OperationCanceledException)
         {
+            // No se borra el staging: conserva los .part de yt-dlp para que un Resume
+            // (DownloadQueue) pueda continuar sin volver a descargar lo ya bajado. Un
+            // cancel definitivo es responsabilidad de quien orquesta (la cola), no de
+            // este servicio — así RunAsync no necesita saber si fue pausa o cancelación.
             job.Status = JobStatus.Canceled;
-            TempCleanup.TryDeleteDirectory(stagingDir);
         }
         catch (Exception ex)
         {

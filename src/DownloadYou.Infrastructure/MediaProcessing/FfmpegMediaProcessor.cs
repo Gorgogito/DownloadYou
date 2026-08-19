@@ -4,7 +4,7 @@ using DownloadYou.Infrastructure.Processes;
 
 namespace DownloadYou.Infrastructure.MediaProcessing;
 
-public sealed partial class FfmpegMediaProcessor(IExternalToolLocator toolLocator, ExternalProcessRunner processRunner) : IMediaProcessor
+public sealed partial class FfmpegMediaProcessor(IExternalToolLocator toolLocator, IExternalProcessRunner processRunner) : IMediaProcessor
 {
     public async Task<string> GetVersionAsync(Action<string>? onOutputLine = null, CancellationToken cancellationToken = default)
     {
