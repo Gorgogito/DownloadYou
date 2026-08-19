@@ -16,13 +16,11 @@ namespace DownloadYou.Presentation.ViewModels;
 
 public sealed partial class MainViewModel : ObservableObject
 {
-    private const string DefaultFileNameTemplate = "{title} - {author} [{quality}].{ext}";
-    private const int DefaultAudioBitrateKbps = 192;
-
     private readonly EngineDiagnosticsService _diagnosticsService;
     private readonly AnalyzeUrlService _analyzeUrlService;
     private readonly DownloadQueue _downloadQueue;
     private readonly HistoryService _historyService;
+    private readonly SettingsService _settingsService;
     private readonly Dispatcher _dispatcher;
 
     public MainViewModel(
@@ -30,20 +28,33 @@ public sealed partial class MainViewModel : ObservableObject
         AnalyzeUrlService analyzeUrlService,
         DownloadQueue downloadQueue,
         HistoryService historyService,
+        SettingsService settingsService,
+        SettingsViewModel settingsViewModel,
         Dispatcher dispatcher)
     {
         _diagnosticsService = diagnosticsService;
         _analyzeUrlService = analyzeUrlService;
         _downloadQueue = downloadQueue;
         _historyService = historyService;
+        _settingsService = settingsService;
+        Settings = settingsViewModel;
         _dispatcher = dispatcher;
 
         _downloadQueue.JobEnqueued += OnJobEnqueued;
         _downloadQueue.JobUpdated += OnJobUpdated;
         _historyService.RecordAdded += OnHistoryRecordAdded;
+        _settingsService.SettingsChanged += OnSettingsChanged;
+
+        var current = _settingsService.Current;
+        _targetFolder = current.DownloadFolder;
+        _isVideoKind = current.DefaultKind == DownloadKind.Video;
+        _isAudioMp3Kind = current.DefaultKind == DownloadKind.AudioMp3;
+        _showLegalDisclaimerBanner = current.ShowLegalDisclaimer;
 
         _ = LoadHistoryAsync();
     }
+
+    public SettingsViewModel Settings { get; }
 
     public ObservableCollection<string> LogLines { get; } = [];
     public ObservableCollection<FormatOption> AvailableFormats { get; } = [];
@@ -76,16 +87,19 @@ public sealed partial class MainViewModel : ObservableObject
     private FormatOption? _selectedFormat;
 
     [ObservableProperty]
-    private bool _isVideoKind = true;
+    private bool _isVideoKind;
 
     [ObservableProperty]
     private bool _isAudioMp3Kind;
 
     [ObservableProperty]
-    private string _targetFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+    private string _targetFolder = string.Empty;
 
     [ObservableProperty]
     private string _enqueueStatus = string.Empty;
+
+    [ObservableProperty]
+    private bool _showLegalDisclaimerBanner;
 
     [ObservableProperty]
     private string _historySearchQuery = string.Empty;
@@ -206,9 +220,11 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
+            var settings = _settingsService.Current;
             var kind = IsAudioMp3Kind ? DownloadKind.AudioMp3 : DownloadKind.Video;
             var job = DownloadJobFactory.Create(
-                MediaInfo, SelectedFormat, kind, TargetFolder, DefaultFileNameTemplate, DefaultAudioBitrateKbps);
+                MediaInfo, SelectedFormat, kind, TargetFolder, settings.FileNameTemplate,
+                settings.DefaultAudioBitrateKbps, settings.ExistingFileBehavior);
 
             _downloadQueue.Enqueue(job);
             EnqueueStatus = $"Agregado a la cola: {job.MediaInfo.Title} ({job.SelectedFormat.DisplayLabel}).";
@@ -273,7 +289,10 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             HistoryStatus = $"Analizando de nuevo: {entry.Title}...";
-            var job = await _historyService.RepeatAsync(entry.Record, TargetFolder, DefaultFileNameTemplate, DefaultAudioBitrateKbps, AppendLine);
+            var settings = _settingsService.Current;
+            var job = await _historyService.RepeatAsync(
+                entry.Record, TargetFolder, settings.FileNameTemplate, settings.DefaultAudioBitrateKbps,
+                settings.ExistingFileBehavior, AppendLine);
             HistoryStatus = $"Agregado a la cola: {job.MediaInfo.Title} ({job.SelectedFormat.DisplayLabel}).";
         }
         catch (Exception ex)
@@ -377,4 +396,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     private void AppendLine(string line) => _dispatcher.Invoke(() => LogLines.Add(line));
+
+    private void OnSettingsChanged(AppSettings settings) =>
+        _dispatcher.Invoke(() => ShowLegalDisclaimerBanner = settings.ShowLegalDisclaimer);
 }

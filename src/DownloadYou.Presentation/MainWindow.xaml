@@ -8,6 +8,7 @@
         xmlns:conv="clr-namespace:DownloadYou.Presentation.Converters"
         xmlns:vm="clr-namespace:DownloadYou.Presentation.ViewModels"
         xmlns:models="clr-namespace:DownloadYou.Presentation.Models"
+        xmlns:enums="clr-namespace:DownloadYou.Domain.Enums;assembly=DownloadYou.Domain"
         mc:Ignorable="d"
         Title="DownloadYou" Height="980" Width="920" MinWidth="760" MinHeight="640"
         WindowStartupLocation="CenterScreen"
@@ -21,6 +22,7 @@
         <conv:PipelineStepStateToSymbolConverter x:Key="StepSymbol"/>
         <conv:CountToVisibilityConverter x:Key="CountToVis"/>
         <conv:LibraryFilterToAppearanceConverter x:Key="LibraryFilterAppearance"/>
+        <conv:EnumToAppearanceConverter x:Key="EnumToAppearance"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
         <Style x:Key="StepIconStyle" TargetType="ui:SymbolIcon">
@@ -194,6 +196,11 @@
 
                 <TextBlock Text="Analiza, descarga y convierte contenido de YouTube."
                            FontSize="13" Opacity="0.65" Margin="0,0,0,16"/>
+
+                <ui:InfoBar Title="Uso responsable"
+                            Message="Descarga únicamente contenido propio, de dominio público o con licencia/autorización explícita del titular. Respeta los Términos de Servicio de YouTube y los derechos de autor."
+                            Severity="Informational" IsOpen="{Binding ShowLegalDisclaimerBanner, Mode=TwoWay}" IsClosable="True"
+                            Margin="0,0,0,16"/>
 
                 <!-- Analizar -->
                 <ui:CardControl Margin="0,0,0,12">
@@ -385,6 +392,130 @@
                                    FontSize="12" Opacity="0.6" Margin="0,10,0,0"/>
                     </StackPanel>
                 </ui:CardControl>
+
+                <!-- Configuración -->
+                <ui:CardExpander Margin="0,0,0,12" IsExpanded="False">
+                    <ui:CardExpander.Icon>
+                        <ui:SymbolIcon Symbol="Settings24"/>
+                    </ui:CardExpander.Icon>
+                    <ui:CardExpander.Header>
+                        <ui:TextBlock Text="Configuración" FontTypography="BodyStrong"/>
+                    </ui:CardExpander.Header>
+                    <StackPanel MinWidth="380" DataContext="{Binding Settings}">
+
+                        <TextBlock Text="Carpeta de descargas por defecto" FontSize="12" Opacity="0.7" Margin="0,0,0,6"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBox Grid.Column="0" Text="{Binding DownloadFolder, UpdateSourceTrigger=PropertyChanged}">
+                                <ui:TextBox.Icon>
+                                    <ui:SymbolIcon Symbol="Folder24"/>
+                                </ui:TextBox.Icon>
+                            </ui:TextBox>
+                            <ui:Button Grid.Column="1" Content="Examinar..." Margin="8,0,0,0" Click="BrowseSettingsFolder_Click"/>
+                        </Grid>
+
+                        <TextBlock Text="Tipo de descarga por defecto" FontSize="12" Opacity="0.7" Margin="0,16,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button Content="Video" Command="{Binding SelectDefaultVideoCommand}"
+                                       Appearance="{Binding IsDefaultVideo, Converter={StaticResource BoolToAppearance}}" Margin="0,0,8,0">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="Video24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                            <ui:Button Content="Audio MP3" Command="{Binding SelectDefaultAudioCommand}"
+                                       Appearance="{Binding IsDefaultAudioMp3, Converter={StaticResource BoolToAppearance}}">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="MusicNote224"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                        </StackPanel>
+
+                        <TextBlock Text="Bitrate de audio por defecto (kbps)" FontSize="12" Opacity="0.7" Margin="0,16,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button Content="128" Command="{Binding SelectAudioBitrateCommand}" CommandParameter="128"
+                                       Appearance="{Binding DefaultAudioBitrateKbps, Converter={StaticResource EnumToAppearance}, ConverterParameter=128}" Margin="0,0,6,0" Padding="10,5"/>
+                            <ui:Button Content="192" Command="{Binding SelectAudioBitrateCommand}" CommandParameter="192"
+                                       Appearance="{Binding DefaultAudioBitrateKbps, Converter={StaticResource EnumToAppearance}, ConverterParameter=192}" Margin="0,0,6,0" Padding="10,5"/>
+                            <ui:Button Content="256" Command="{Binding SelectAudioBitrateCommand}" CommandParameter="256"
+                                       Appearance="{Binding DefaultAudioBitrateKbps, Converter={StaticResource EnumToAppearance}, ConverterParameter=256}" Margin="0,0,6,0" Padding="10,5"/>
+                            <ui:Button Content="320" Command="{Binding SelectAudioBitrateCommand}" CommandParameter="320"
+                                       Appearance="{Binding DefaultAudioBitrateKbps, Converter={StaticResource EnumToAppearance}, ConverterParameter=320}" Padding="10,5"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Descargas simultáneas (se aplica al reiniciar la app)" FontSize="12" Opacity="0.7" Margin="0,16,0,6"/>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <ui:Button Command="{Binding DecrementMaxConcurrentCommand}" Padding="8,4">
+                                <ui:SymbolIcon Symbol="Subtract24"/>
+                            </ui:Button>
+                            <TextBlock Text="{Binding MaxConcurrentDownloads}" FontSize="16" FontWeight="SemiBold"
+                                       Width="32" TextAlignment="Center" VerticalAlignment="Center" Margin="8,0"/>
+                            <ui:Button Command="{Binding IncrementMaxConcurrentCommand}" Padding="8,4">
+                                <ui:SymbolIcon Symbol="Add24"/>
+                            </ui:Button>
+                        </StackPanel>
+
+                        <TextBlock Text="Si el archivo final ya existe" FontSize="12" Opacity="0.7" Margin="0,16,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button Content="Renombrar" Command="{Binding SelectExistingFileBehaviorCommand}" CommandParameter="{x:Static enums:ExistingFileBehavior.Rename}"
+                                       Appearance="{Binding ExistingFileBehavior, Converter={StaticResource EnumToAppearance}, ConverterParameter=Rename}" Margin="0,0,6,0" Padding="10,5"/>
+                            <ui:Button Content="Sobrescribir" Command="{Binding SelectExistingFileBehaviorCommand}" CommandParameter="{x:Static enums:ExistingFileBehavior.Overwrite}"
+                                       Appearance="{Binding ExistingFileBehavior, Converter={StaticResource EnumToAppearance}, ConverterParameter=Overwrite}" Margin="0,0,6,0" Padding="10,5"/>
+                            <ui:Button Content="Omitir" Command="{Binding SelectExistingFileBehaviorCommand}" CommandParameter="{x:Static enums:ExistingFileBehavior.Skip}"
+                                       Appearance="{Binding ExistingFileBehavior, Converter={StaticResource EnumToAppearance}, ConverterParameter=Skip}" Padding="10,5"/>
+                        </StackPanel>
+
+                        <TextBlock Text="Plantilla de nombre de archivo" FontSize="12" Opacity="0.7" Margin="0,16,0,6"/>
+                        <ui:TextBox Text="{Binding FileNameTemplate, UpdateSourceTrigger=PropertyChanged}">
+                            <ui:TextBox.Icon>
+                                <ui:SymbolIcon Symbol="DocumentText24"/>
+                            </ui:TextBox.Icon>
+                        </ui:TextBox>
+                        <TextBlock Text="{Binding FileNamePreview}" FontSize="11" Opacity="0.6" Margin="0,4,0,0" TextWrapping="Wrap"/>
+
+                        <TextBlock Text="Tema" FontSize="12" Opacity="0.7" Margin="0,16,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:Button Content="Sistema" Command="{Binding SelectThemeCommand}" CommandParameter="{x:Static enums:ThemePreference.System}"
+                                       Appearance="{Binding ThemePreference, Converter={StaticResource EnumToAppearance}, ConverterParameter=System}" Margin="0,0,6,0" Padding="10,5">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="Desktop24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                            <ui:Button Content="Claro" Command="{Binding SelectThemeCommand}" CommandParameter="{x:Static enums:ThemePreference.Light}"
+                                       Appearance="{Binding ThemePreference, Converter={StaticResource EnumToAppearance}, ConverterParameter=Light}" Margin="0,0,6,0" Padding="10,5">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="WeatherSunny24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                            <ui:Button Content="Oscuro" Command="{Binding SelectThemeCommand}" CommandParameter="{x:Static enums:ThemePreference.Dark}"
+                                       Appearance="{Binding ThemePreference, Converter={StaticResource EnumToAppearance}, ConverterParameter=Dark}" Padding="10,5">
+                                <ui:Button.Icon>
+                                    <ui:SymbolIcon Symbol="WeatherMoon24"/>
+                                </ui:Button.Icon>
+                            </ui:Button>
+                        </StackPanel>
+
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ui:TextBlock Grid.Column="0" Text="Mostrar aviso de uso responsable" VerticalAlignment="Center"/>
+                            <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding ShowLegalDisclaimer}"/>
+                        </Grid>
+
+                        <TextBlock Text="Idioma: Español (único disponible por ahora)." FontSize="11" Opacity="0.55" Margin="0,16,0,0"/>
+
+                        <ui:Button Content="Guardar" Command="{Binding SaveCommand}" Appearance="Primary" Margin="0,16,0,0">
+                            <ui:Button.Icon>
+                                <ui:SymbolIcon Symbol="Save24"/>
+                            </ui:Button.Icon>
+                        </ui:Button>
+                        <TextBlock Text="{Binding SaveStatus}" Margin="0,8,0,0" FontSize="12" Opacity="0.85" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </ui:CardExpander>
 
                 <!-- Diagnóstico y registro -->
                 <ui:CardExpander Margin="0,0,0,12" IsExpanded="False">

@@ -46,6 +46,7 @@ public sealed class HistoryService
         string targetDirectory,
         string fileNameTemplate,
         int targetAudioBitrateKbps,
+        ExistingFileBehavior existingFileBehavior = ExistingFileBehavior.Rename,
         Action<string>? onOutputLine = null,
         CancellationToken cancellationToken = default)
     {
@@ -55,7 +56,7 @@ public sealed class HistoryService
             ?? throw new InvalidOperationException(
                 $"El formato '{record.FormatId}' ({record.QualityLabel}) ya no está disponible para este video. Analízalo de nuevo y elige otra calidad.");
 
-        var job = DownloadJobFactory.Create(mediaInfo, format, record.Kind, targetDirectory, fileNameTemplate, targetAudioBitrateKbps);
+        var job = DownloadJobFactory.Create(mediaInfo, format, record.Kind, targetDirectory, fileNameTemplate, targetAudioBitrateKbps, existingFileBehavior);
         _queue.Enqueue(job);
         return job;
     }

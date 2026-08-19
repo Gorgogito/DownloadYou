@@ -11,6 +11,6 @@ public sealed class AppSettings
     public ExistingFileBehavior ExistingFileBehavior { get; set; } = ExistingFileBehavior.Rename;
     public string FileNameTemplate { get; set; } = "{title} - {author} [{quality}].{ext}";
     public string Language { get; set; } = "es";
-    public bool UseDarkTheme { get; set; }
+    public ThemePreference ThemePreference { get; set; } = ThemePreference.System;
     public bool ShowLegalDisclaimer { get; set; } = true;
 }

@@ -16,12 +16,14 @@ public static class InfrastructureServiceCollectionExtensions
     {
         services.Configure<ToolsOptions>(configuration.GetSection(ToolsOptions.SectionName));
         services.Configure<HistoryOptions>(configuration.GetSection(HistoryOptions.SectionName));
+        services.Configure<SettingsOptions>(configuration.GetSection(SettingsOptions.SectionName));
 
         services.AddSingleton<IExternalToolLocator, ExternalToolLocator>();
         services.AddSingleton<IExternalProcessRunner, ExternalProcessRunner>();
         services.AddSingleton<IVideoSource, YtDlpVideoSource>();
         services.AddSingleton<IMediaProcessor, FfmpegMediaProcessor>();
         services.AddSingleton<IHistoryRepository, SqliteHistoryRepository>();
+        services.AddSingleton<ISettingsStore, JsonSettingsStore>();
 
         return services;
     }

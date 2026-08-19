@@ -17,7 +17,8 @@ public static class DownloadJobFactory
         DownloadKind kind,
         string targetDirectory,
         string fileNameTemplate,
-        int targetAudioBitrateKbps)
+        int targetAudioBitrateKbps,
+        ExistingFileBehavior existingFileBehavior = ExistingFileBehavior.Rename)
     {
         FormatOption? pairedAudio = null;
 
@@ -44,7 +45,8 @@ public static class DownloadJobFactory
             TargetDirectory = targetDirectory,
             FileNameTemplate = fileNameTemplate,
             TargetAudioBitrateKbps = targetAudioBitrateKbps,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow,
+            ExistingFileBehavior = existingFileBehavior
         };
     }
 

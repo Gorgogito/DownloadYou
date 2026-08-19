@@ -14,11 +14,21 @@ public sealed class DownloadService(IVideoSource videoSource)
 {
     public async Task RunAsync(
         DownloadJob job,
-        ExistingFileBehavior existingFileBehavior = ExistingFileBehavior.Rename,
         Action<string>? onOutputLine = null,
         Action? onProgressChanged = null,
         CancellationToken cancellationToken = default)
     {
+        if (job.ExistingFileBehavior == ExistingFileBehavior.Skip && TryResolveExistingOutput(job, out var existingPath))
+        {
+            onOutputLine?.Invoke($"[DownloadYou] Ya existe '{existingPath}'; se omite la descarga (comportamiento: Omitir).");
+            job.Status = JobStatus.Completed;
+            job.OutputFilePath = existingPath;
+            job.ProgressPercent = 100;
+            job.CompletedAt = DateTimeOffset.UtcNow;
+            onProgressChanged?.Invoke();
+            return;
+        }
+
         job.Status = JobStatus.Downloading;
         job.ProgressPercent = 0;
 
@@ -69,7 +79,7 @@ public sealed class DownloadService(IVideoSource videoSource)
             }
             else
             {
-                job.OutputFilePath = MoveToFinalDestination(job, existingFileBehavior);
+                job.OutputFilePath = MoveToFinalDestination(job);
                 job.Status = JobStatus.Completed;
                 job.CompletedAt = DateTimeOffset.UtcNow;
                 TempCleanup.TryDeleteDirectory(stagingDir);
@@ -95,7 +105,7 @@ public sealed class DownloadService(IVideoSource videoSource)
         }
     }
 
-    private static string MoveToFinalDestination(DownloadJob job, ExistingFileBehavior behavior)
+    private static string MoveToFinalDestination(DownloadJob job)
     {
         Directory.CreateDirectory(job.TargetDirectory);
 
@@ -106,9 +116,20 @@ public sealed class DownloadService(IVideoSource videoSource)
             job.SelectedFormat.DisplayLabel,
             job.SelectedFormat.Container);
 
-        var destination = DestinationPathResolver.ResolveCollision(Path.Combine(job.TargetDirectory, fileName), behavior);
-        File.Move(job.PrimaryFilePath!, destination, overwrite: behavior == ExistingFileBehavior.Overwrite);
+        var destination = DestinationPathResolver.ResolveCollision(Path.Combine(job.TargetDirectory, fileName), job.ExistingFileBehavior);
+        File.Move(job.PrimaryFilePath!, destination, overwrite: job.ExistingFileBehavior == ExistingFileBehavior.Overwrite);
         return destination;
+    }
+
+    /// <summary>Extensión que tendrá el archivo final, sea que se mueva tal cual o que ConversionService lo produzca después.</summary>
+    private static bool TryResolveExistingOutput(DownloadJob job, out string existingPath)
+    {
+        var ext = job.Kind == DownloadKind.AudioMp3 ? "mp3" : job.SelectedFormat.Container;
+        var fileName = FileNameTemplateEngine.Resolve(
+            job.FileNameTemplate, job.MediaInfo.Title, job.MediaInfo.Author, job.SelectedFormat.DisplayLabel, ext);
+
+        existingPath = Path.Combine(job.TargetDirectory, fileName);
+        return File.Exists(existingPath);
     }
 
     private static void ApplyProgress(DownloadJob job, DownloadProgressUpdate update, int streamIndex, int streamCount)

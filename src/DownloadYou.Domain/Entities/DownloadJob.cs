@@ -17,6 +17,9 @@ public sealed class DownloadJob
     public required int TargetAudioBitrateKbps { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
 
+    /// <summary>Qué hacer si el archivo final ya existe; tomado de AppSettings al crear el job.</summary>
+    public ExistingFileBehavior ExistingFileBehavior { get; init; } = ExistingFileBehavior.Rename;
+
     public JobStatus Status { get; set; } = JobStatus.Queued;
     public double ProgressPercent { get; set; }
     public double? SpeedBytesPerSecond { get; set; }

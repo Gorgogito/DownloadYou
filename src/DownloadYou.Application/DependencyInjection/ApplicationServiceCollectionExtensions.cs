@@ -12,7 +12,15 @@ public static class ApplicationServiceCollectionExtensions
         services.AddSingleton<AnalyzeUrlService>();
         services.AddSingleton<DownloadService>();
         services.AddSingleton<ConversionService>();
-        services.AddSingleton<DownloadQueue>();
+        services.AddSingleton<SettingsService>();
+
+        // La concurrencia de la cola se fija al construirla (arranca N workers de una);
+        // cambiar "Descargas simultáneas" en Configuración aplica desde el próximo inicio.
+        services.AddSingleton(sp => new DownloadQueue(
+            sp.GetRequiredService<DownloadService>(),
+            sp.GetRequiredService<ConversionService>(),
+            sp.GetRequiredService<SettingsService>().Current.MaxConcurrentDownloads));
+
         services.AddSingleton<HistoryService>();
         return services;
     }

@@ -13,7 +13,6 @@ public sealed class ConversionService(IMediaProcessor mediaProcessor)
 {
     public async Task RunAsync(
         DownloadJob job,
-        ExistingFileBehavior existingFileBehavior = ExistingFileBehavior.Rename,
         Action<string>? onOutputLine = null,
         Action? onProgressChanged = null,
         CancellationToken cancellationToken = default)
@@ -39,8 +38,8 @@ public sealed class ConversionService(IMediaProcessor mediaProcessor)
                 job.FileNameTemplate, job.MediaInfo.Title, job.MediaInfo.Author, job.SelectedFormat.DisplayLabel, outputExt);
 
             Directory.CreateDirectory(job.TargetDirectory);
-            var destination = DestinationPathResolver.ResolveCollision(Path.Combine(job.TargetDirectory, fileName), existingFileBehavior);
-            File.Move(convertedPath, destination, overwrite: existingFileBehavior == ExistingFileBehavior.Overwrite);
+            var destination = DestinationPathResolver.ResolveCollision(Path.Combine(job.TargetDirectory, fileName), job.ExistingFileBehavior);
+            File.Move(convertedPath, destination, overwrite: job.ExistingFileBehavior == ExistingFileBehavior.Overwrite);
 
             var verification = await mediaProcessor.VerifyAsync(
                 destination, job.MediaInfo.Duration, requireVideoStream, onOutputLine, cancellationToken);

@@ -5,8 +5,10 @@ namespace DownloadYou.Application.Services;
 public static class DestinationPathResolver
 {
     /// <summary>
-    /// Skip se trata como Rename hasta que la Fase 9 (Configuración) lo exponga en la UI;
-    /// decidir "no descargar" pertenece a un paso previo a la descarga, no a este.
+    /// "No descargar" para Skip ya lo decide DownloadService antes de arrancar la descarga
+    /// (ve si el destino ya existe). Este método solo corre después de descargar/convertir,
+    /// así que si llega acá con Skip y el destino ya existe (carrera con otro proceso desde
+    /// el chequeo inicial), se trata igual que Rename para no perder ni pisar el archivo.
     /// </summary>
     public static string ResolveCollision(string path, ExistingFileBehavior behavior)
     {

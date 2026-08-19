@@ -16,7 +16,9 @@ public class DownloadServiceTests : IDisposable
     private static MediaInfo BuildMediaInfo(params FormatOption[] formats) =>
         new("https://youtu.be/x", "x", "Título de prueba", "Autor", TimeSpan.FromMinutes(1), null, formats);
 
-    private static DownloadJob BuildJob(MediaInfo mediaInfo, FormatOption selected, FormatOption? pairedAudio, string targetDir, DownloadKind kind = DownloadKind.Video) => new()
+    private static DownloadJob BuildJob(
+        MediaInfo mediaInfo, FormatOption selected, FormatOption? pairedAudio, string targetDir,
+        DownloadKind kind = DownloadKind.Video, ExistingFileBehavior existingFileBehavior = ExistingFileBehavior.Rename) => new()
     {
         Id = Guid.NewGuid(),
         MediaInfo = mediaInfo,
@@ -26,7 +28,8 @@ public class DownloadServiceTests : IDisposable
         TargetDirectory = targetDir,
         FileNameTemplate = "{title}.{ext}",
         TargetAudioBitrateKbps = 192,
-        CreatedAt = DateTimeOffset.UtcNow
+        CreatedAt = DateTimeOffset.UtcNow,
+        ExistingFileBehavior = existingFileBehavior
     };
 
     [Fact]
@@ -53,9 +56,72 @@ public class DownloadServiceTests : IDisposable
         var job = BuildJob(mediaInfo, Muxed360p, pairedAudio: null, _targetDir);
         var service = new DownloadService(new FakeVideoSource());
 
-        await service.RunAsync(job, ExistingFileBehavior.Rename);
+        await service.RunAsync(job);
 
         Assert.Equal("Título de prueba (2).mp4", Path.GetFileName(job.OutputFilePath));
+    }
+
+    [Fact]
+    public async Task RunAsync_OverwritesExistingFile_WhenBehaviorIsOverwrite()
+    {
+        var existingPath = Path.Combine(_targetDir, "Título de prueba.mp4");
+        File.WriteAllText(existingPath, "contenido viejo");
+        var mediaInfo = BuildMediaInfo(Muxed360p);
+        var job = BuildJob(mediaInfo, Muxed360p, pairedAudio: null, _targetDir, existingFileBehavior: ExistingFileBehavior.Overwrite);
+        var service = new DownloadService(new FakeVideoSource());
+
+        await service.RunAsync(job);
+
+        Assert.Equal(existingPath, job.OutputFilePath);
+        Assert.Equal("contenido-simulado", File.ReadAllText(existingPath));
+    }
+
+    [Fact]
+    public async Task RunAsync_SkipsWithoutDownloading_WhenBehaviorIsSkipAndFileAlreadyExists()
+    {
+        var existingPath = Path.Combine(_targetDir, "Título de prueba.mp4");
+        File.WriteAllText(existingPath, "ya descargado antes");
+        var mediaInfo = BuildMediaInfo(Muxed360p);
+        var job = BuildJob(mediaInfo, Muxed360p, pairedAudio: null, _targetDir, existingFileBehavior: ExistingFileBehavior.Skip);
+        // Si DownloadAsync llegara a invocarse, esto lanzaría y el test fallaría —
+        // es la forma de probar que el chequeo de Skip corta antes de descargar nada.
+        var service = new DownloadService(new FakeVideoSource { ThrowOnDownload = new InvalidOperationException("no debería descargar") });
+
+        await service.RunAsync(job);
+
+        Assert.Equal(JobStatus.Completed, job.Status);
+        Assert.Equal(existingPath, job.OutputFilePath);
+        Assert.Equal(100, job.ProgressPercent);
+        Assert.Equal("ya descargado antes", File.ReadAllText(existingPath));
+    }
+
+    [Fact]
+    public async Task RunAsync_DownloadsNormally_WhenBehaviorIsSkipButFileDoesNotExistYet()
+    {
+        var mediaInfo = BuildMediaInfo(Muxed360p);
+        var job = BuildJob(mediaInfo, Muxed360p, pairedAudio: null, _targetDir, existingFileBehavior: ExistingFileBehavior.Skip);
+        var service = new DownloadService(new FakeVideoSource());
+
+        await service.RunAsync(job);
+
+        Assert.Equal(JobStatus.Completed, job.Status);
+        Assert.Equal("contenido-simulado", File.ReadAllText(job.OutputFilePath!));
+    }
+
+    [Fact]
+    public async Task RunAsync_SkipCheck_AccountsForMp3Extension_WhenKindIsAudioMp3()
+    {
+        var existingPath = Path.Combine(_targetDir, "Título de prueba.mp3");
+        File.WriteAllText(existingPath, "mp3 ya existente");
+        var audioOnly = new FormatOption("140", StreamKind.AudioOnly, "m4a", null, "aac", null, null, null, 128, null);
+        var mediaInfo = BuildMediaInfo(audioOnly);
+        var job = BuildJob(mediaInfo, audioOnly, pairedAudio: null, _targetDir, kind: DownloadKind.AudioMp3, existingFileBehavior: ExistingFileBehavior.Skip);
+        var service = new DownloadService(new FakeVideoSource { ThrowOnDownload = new InvalidOperationException("no debería descargar") });
+
+        await service.RunAsync(job);
+
+        Assert.Equal(JobStatus.Completed, job.Status);
+        Assert.Equal(existingPath, job.OutputFilePath);
     }
 
     [Fact]
