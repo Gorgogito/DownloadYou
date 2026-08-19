@@ -4,7 +4,8 @@ Aplicación de escritorio (Windows, .NET 10, WPF) para descarga y conversión de
 
 ## Estado
 
-**Fase 1 — Prototipo técnico.** Solución con las cuatro capas (Domain, Application, Infrastructure, Presentation), inyección de dependencias configurada, y una prueba de concepto que invoca `yt-dlp` y `ffmpeg` como procesos externos y transmite su salida estándar en tiempo real a la interfaz.
+- ✅ **Fase 1 — Prototipo técnico.** Solución con las cuatro capas (Domain, Application, Infrastructure, Presentation), inyección de dependencias configurada, y una prueba de concepto que invoca `yt-dlp` y `ffmpeg` como procesos externos y transmite su salida estándar en tiempo real a la interfaz.
+- ✅ **Fase 2 — Análisis de URL y metadatos.** `AnalyzeUrlService` valida que la URL sea de YouTube (allowlist de hosts, defensa en profundidad) y delega en `YtDlpVideoSource.AnalyzeAsync`, que invoca `yt-dlp --dump-json` y parsea el resultado (`YtDlpMetadataParser`) a `MediaInfo`/`FormatOption`, clasificando cada stream como video-only, audio-only o combinado. La ventana muestra miniatura, título, duración y la lista de calidades realmente disponibles para ese video.
 
 ## Estructura
 
@@ -12,10 +13,11 @@ Aplicación de escritorio (Windows, .NET 10, WPF) para descarga y conversión de
 src/
   DownloadYou.Domain          Entidades y enums, sin dependencias externas
   DownloadYou.Application     Casos de uso + abstracciones (IVideoSource, IMediaProcessor, IExternalToolLocator)
-  DownloadYou.Infrastructure  Adaptadores: yt-dlp, ffmpeg, orquestación de procesos (CliWrap)
+  DownloadYou.Infrastructure  Adaptadores: yt-dlp (versión + análisis), ffmpeg, orquestación de procesos (CliWrap)
   DownloadYou.Presentation    WPF + MVVM (CommunityToolkit.Mvvm) + Generic Host
 tests/
   DownloadYou.Domain.Tests
+  DownloadYou.Application.Tests
   DownloadYou.Infrastructure.Tests
 tools/                        yt-dlp.exe / ffmpeg.exe / ffprobe.exe (no versionados, ver tools/README.md)
 ```
@@ -32,7 +34,10 @@ dotnet build
 dotnet run --project src/DownloadYou.Presentation
 ```
 
-La ventana del prototipo tiene un único botón, "Probar motores (yt-dlp / ffmpeg)", que resuelve ambos ejecutables, los invoca con `--version` / `-version` y muestra su salida línea por línea en tiempo real — la prueba de concepto que valida el patrón de invocación de procesos externos antes de construir el resto del pipeline (análisis, descarga, conversión) sobre él.
+La ventana tiene dos zonas:
+
+1. "Probar motores (yt-dlp / ffmpeg)" resuelve ambos ejecutables, los invoca con `--version` / `-version` y muestra su salida línea por línea en tiempo real — la prueba de concepto que valida el patrón de invocación de procesos externos antes de construir el resto del pipeline sobre él.
+2. Un campo de URL + botón "Analizar" que ejecuta `yt-dlp --dump-json` sobre el video y muestra su miniatura, estado y la lista de formatos disponibles (video-only, audio-only, combinados) con su etiqueta de calidad real.
 
 ## Pruebas
 
