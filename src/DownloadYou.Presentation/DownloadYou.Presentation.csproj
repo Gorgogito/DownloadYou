@@ -18,12 +18,21 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="Assets\icon.ico" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <AssemblyName>DownloadYou</AssemblyName>
+    <Version>1.0.0</Version>
+    <Product>DownloadYou</Product>
+    <Company>DownloadYou</Company>
   </PropertyGroup>
 
 </Project>

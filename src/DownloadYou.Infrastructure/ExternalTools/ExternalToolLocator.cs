@@ -52,7 +52,12 @@ public sealed class ExternalToolLocator(IOptions<ToolsOptions> toolsOptions) : I
             yield break;
         }
 
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        // AppContext.BaseDirectory apunta a una carpeta temporal de autoextracción en un
+        // publish self-contained/single-file (PublishSingleFile + IncludeAllContentForSelfExtract),
+        // no a la carpeta real de instalación — ahí nunca encontraría la carpeta "tools" que
+        // arma el instalador junto al .exe. Environment.ProcessPath sí apunta al .exe real en disco.
+        var startDirectory = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+        var dir = new DirectoryInfo(startDirectory);
         for (var i = 0; i < 6 && dir is not null; i++, dir = dir.Parent)
         {
             yield return Path.Combine(dir.FullName, configuredDir);

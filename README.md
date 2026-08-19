@@ -14,6 +14,7 @@ Aplicación de escritorio (Windows, .NET 10, WPF) para descarga y conversión de
 - ✅ **Fase 8 — Biblioteca.** Vistas **Recientes / Videos / Audio / Favoritos** sobre el mismo historial (sin una fuente de datos separada): filtran en memoria los registros ya `Completed` cuyo archivo todavía existe en disco. Se agregó `IsFavorite` a `HistoryRecord` — con migración liviana (`ALTER TABLE`) para bases creadas en la Fase 7, que no tenían esa columna — y un botón de estrella (compartido entre las filas de Historial y Biblioteca, misma instancia de `HistoryEntryViewModel`, así que marcar/desmarcar se refleja al instante en ambos lados).
 - ✅ **Fase 9 — Configuración.** `AppSettings` se persiste como JSON legible en `%AppData%\DownloadYou\settings.json` (`JsonSettingsStore`) y queda genuinamente conectado al resto de la app vía `SettingsService`, no solo expuesto en la UI: carpeta de descargas, tipo y bitrate de audio por defecto, plantilla de nombre de archivo y comportamiento ante archivo existente ahora los lee `MainViewModel` de `SettingsService.Current` en cada `Enqueue`/`Repetir`, en vez de constantes fijas. De paso se cerró un hueco real que venía desde la Fase 3: la opción **Omitir** (Skip) nunca se ejecutaba de verdad — `DownloadService` la trataba como Renombrar porque Configuración todavía no existía para exponerla; ahora hay un chequeo previo que detecta el archivo ya existente y evita la descarga por completo. El tema (Sistema/Claro/Oscuro) tiene vista previa instantánea al elegirlo y, al guardar, la preferencia se respeta también al reabrir la app (antes, `App.xaml.cs` siempre forzaba el tema del sistema al arrancar, ignorando cualquier elección previa). **Limitaciones conocidas, documentadas en la propia UI:** la cantidad de descargas simultáneas se aplica recién la próxima vez que se abre la app (la cola no redimensiona su pool de workers en caliente), y el campo Idioma queda guardado para compatibilidad futura pero no hay todavía infraestructura de localización — toda la interfaz sigue en español fijo, así que no se ofrece un selector que no haría nada.
 - ✅ **Fase 10 — Pruebas.** El mayor hueco de cobertura real era la capa de Presentación: cero tests desde el inicio del proyecto pese a tener lógica no trivial (motor de estados del indicador de etapas de cada descarga, formateo de velocidad/tamaño/ETA, conmutación mutuamente excluyente de Video/Audio, previsualización en vivo de la plantilla de nombre). Se agregó el proyecto `DownloadYou.Presentation.Tests` (95 pruebas: ViewModels, converters de WPF y `DisplayFormat`, con dobles de prueba propios para `IVideoSource`/`IMediaProcessor`/`IHistoryRepository` en vez de tocar yt-dlp/ffmpeg/SQLite reales) y `DestinationPathResolverTests` en `DownloadYou.Application.Tests`, que hasta ahora solo se ejercitaba indirectamente a través de `DownloadService`. De paso se encontró y corrigió un deadlock real: un test que encolaba una descarga de verdad hacía que el worker en background de `DownloadQueue` llamara a `Dispatcher.Invoke` desde otro hilo hacia un `Dispatcher` de prueba sin message loop corriendo — se colgaba para siempre y, según el orden de ejecución, podía trabar toda la corrida de `dotnet test` de la solución. El doble de prueba de `IVideoSource` ahora nunca completa la descarga (en vez de lanzar de inmediato), así el worker se queda esperando sin volver a cruzar hilos hacia el `Dispatcher` capturado en el test.
+- ✅ **Fase 11 — Instalador.** Publicación self-contained/single-file (`dotnet publish` + `Properties/PublishProfiles/win-x64.pubxml`, sin trimming porque WPF depende de reflexión para cargar XAML) empaquetada con **Inno Setup** en un instalador por-usuario (sin UAC, `PrivilegesRequired=lowest`) que incluye `tools/yt-dlp.exe`/`ffmpeg.exe`/`ffprobe.exe`, y un **ZIP portable** como alternativa sin instalación (`build\publish.ps1` genera ambos). Se agregó un ícono propio (`Assets/icon.ico`, generado programáticamente en la paleta teal del documento de arquitectura) y se renombró el ejecutable a `DownloadYou.exe`. Durante la verificación en vivo (instalar, correr diagnóstico, desinstalar — no solo compilar el script) aparecieron dos bugs reales que un simple build nunca hubiera revelado: **(1)** el ffmpeg de `tools/` era un build GPL (`--enable-gpl`, libx264/libx265), contradiciendo la mitigación de licencia que pedía el propio documento de arquitectura (§16) — se reemplazó por el build LGPL oficial de BtbN/FFmpeg-Builds, que cubre exactamente lo que la app usa (remux `-c copy` + `libmp3lame`); **(2)** `ExternalToolLocator` buscaba `tools/` subiendo desde `AppContext.BaseDirectory`, que en un publish single-file con auto-extracción apunta a una carpeta temporal (`%TEMP%\.net\DownloadYou\...`), no a la carpeta real de instalación — la app instalada nunca encontraba sus propias herramientas empaquetadas. Se corrigió resolviendo desde `Environment.ProcessPath` (la ruta real del .exe en disco), sin romper ninguno de los tests existentes (los tests de integración corren sobre el mismo directorio en ambos casos). También se firmó como pendiente la firma de código del instalador: no hay certificado disponible todavía, así que el instalador queda sin firmar (riesgo medio ya documentado en §16 — más falsos positivos de antivirus); el script deja comentada la línea `SignTool` lista para activar cuando exista uno.
 
 ## Estructura
 
@@ -28,6 +29,8 @@ tests/
   DownloadYou.Application.Tests
   DownloadYou.Infrastructure.Tests
 tools/                        yt-dlp.exe / ffmpeg.exe / ffprobe.exe (no versionados, ver tools/README.md)
+installer/                    Script de Inno Setup (DownloadYou.iss) + avisos legales/de terceros
+build/                        publish.ps1 -- genera el instalador y el ZIP portable
 ```
 
 ## Requisitos
@@ -63,3 +66,20 @@ dotnet test --filter "Category!=Integration"
 # Todo, incluida la prueba de integración contra yt-dlp/ffmpeg reales en tools/
 dotnet test
 ```
+
+## Distribución
+
+```powershell
+# Genera dist\DownloadYou-Setup-<version>.exe y dist\DownloadYou-Portable-<version>.zip
+powershell -File build\publish.ps1
+```
+
+Requiere `tools/` con los binarios reales (ver `tools/README.md` — **ffmpeg/ffprobe deben ser el
+build LGPL**, nunca uno GPL, porque se redistribuyen dentro del instalador) e
+[Inno Setup 6](https://jrsoftware.org/isinfo.php) instalado (`winget install JRSoftware.InnoSetup`).
+
+El instalador se compila con `installer\DownloadYou.iss`: instala por-usuario en
+`%LocalAppData%\Programs\DownloadYou` (sin UAC), agrega accesos directos al Menú Inicio y
+desinstalador, e incluye `THIRD-PARTY-NOTICES.txt`. Todavía no está firmado con un certificado de
+código (§16 del documento de arquitectura): la línea `SignTool` queda comentada en el script, lista
+para activar cuando exista uno.

@@ -18,3 +18,6 @@ tools/*
 
 ## Build output
 artifacts/
+
+## Artefactos de distribución (Fase 11) -- se generan con build\publish.ps1
+dist/

@@ -11,6 +11,7 @@
         xmlns:enums="clr-namespace:DownloadYou.Domain.Enums;assembly=DownloadYou.Domain"
         mc:Ignorable="d"
         Title="DownloadYou" Height="980" Width="920" MinWidth="760" MinHeight="640"
+        Icon="/Assets/icon.ico"
         WindowStartupLocation="CenterScreen"
         ExtendsContentIntoTitleBar="True"
         WindowBackdropType="Mica"

@@ -1,0 +1,23 @@
+USO RESPONSABLE DE DOWNLOADYOU
+
+DownloadYou es una herramienta de descarga y conversión de contenido de
+YouTube para uso personal. Al instalar y usar esta aplicación, aceptás lo
+siguiente:
+
+  - Descargá únicamente contenido propio, de dominio público, o para el que
+    tengas licencia o autorización explícita del titular de los derechos.
+
+  - Respetá los Términos de Servicio de YouTube y la legislación de
+    propiedad intelectual vigente en tu país.
+
+  - DownloadYou no aloja, distribuye ni tiene ningún vínculo con contenido
+    de terceros: es exclusivamente un cliente que invoca herramientas de
+    código abierto (yt-dlp, FFmpeg) bajo tu control y responsabilidad.
+
+  - El desarrollador de DownloadYou no se hace responsable del uso que le
+    des a la aplicación.
+
+Este mismo aviso está disponible dentro de la aplicación en cualquier
+momento (y se puede ocultar desde Configuración una vez leído).
+
+Presioná "Acepto" para continuar con la instalación.

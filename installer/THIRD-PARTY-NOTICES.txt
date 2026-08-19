@@ -1,0 +1,43 @@
+DownloadYou incluye los siguientes componentes de terceros:
+
+------------------------------------------------------------------------------
+yt-dlp (tools\yt-dlp.exe)
+------------------------------------------------------------------------------
+Licencia: Unlicense (dominio público)
+Proyecto: https://github.com/yt-dlp/yt-dlp
+
+------------------------------------------------------------------------------
+FFmpeg / FFprobe (tools\ffmpeg.exe, tools\ffprobe.exe)
+------------------------------------------------------------------------------
+Licencia: LGPL v3
+Build: BtbN/FFmpeg-Builds (win64-lgpl) — https://github.com/BtbN/FFmpeg-Builds
+Proyecto: https://ffmpeg.org
+
+Este build está compilado explícitamente SIN codificadores GPL (libx264,
+libx265, libxvid deshabilitados) para poder redistribuirse bajo los términos
+de LGPL v3 sin condicionar la licencia del resto de la aplicación. DownloadYou
+solo invoca FFmpeg para remuxear streams (-c copy, sin recodificar) y para
+extraer audio a MP3 (libmp3lame), operaciones que no requieren los
+codificadores GPL excluidos de este build.
+
+Bajo LGPL v3 tenés derecho a reemplazar estos binarios por tu propio build de
+FFmpeg compatible; el código fuente de FFmpeg está disponible en
+https://github.com/FFmpeg/FFmpeg.
+
+------------------------------------------------------------------------------
+WPF-UI
+------------------------------------------------------------------------------
+Licencia: MIT
+Proyecto: https://github.com/lepoco/wpfui
+
+------------------------------------------------------------------------------
+CommunityToolkit.Mvvm
+------------------------------------------------------------------------------
+Licencia: MIT
+Proyecto: https://github.com/CommunityToolkit/dotnet
+
+------------------------------------------------------------------------------
+.NET / .NET Desktop Runtime (incluido en esta distribución self-contained)
+------------------------------------------------------------------------------
+Licencia: MIT
+Proyecto: https://github.com/dotnet/runtime
